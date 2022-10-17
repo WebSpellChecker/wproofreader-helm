@@ -69,7 +69,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ include "wproofreader.fullname" . }}-lic
-                  key: licence
+                  key: license
       volumes:
         {{- if .Values.useHTTPS | and .Values.certFile }}
         - name: tls-secret-volume

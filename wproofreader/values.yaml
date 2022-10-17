@@ -1,7 +1,7 @@
 
 useHTTPS: false
 webPort: ""
-licenceTicketID: ""
+licenseTicketID: ""
 virtualDir: wscservice
 
 # relative paths of key and cert file pairs within the Helm Chart directory

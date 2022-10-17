@@ -42,10 +42,10 @@ in `values.yaml`.
 
 There are three ways the service can be activated:
 1. During `docker build` by setting the `LICENSE_TICKET_ID` argument.
-2. During chart deployment through the `values.yaml` config file (`licenceTicketID` parameter).
+2. During chart deployment through the `values.yaml` config file (`licenseTicketID` parameter).
 3. During chart deployment using the CLI flag:
 ```shell
---set licenceTicketID=$LICENSE_TICKET_ID
+--set licenseTicketID=$LICENSE_TICKET_ID
 ```
 provided that `LICENSE_TICKET_ID` is set in your environment.
 
