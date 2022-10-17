@@ -1,0 +1,20 @@
+WProofreader service was deployed successfully!
+
+{{ $baseUrl := printf "http%s://%s.%s.svc:%s/%s/" (.Values.useHTTPS | ternary "s" "") (include "wproofreader.fullname" .)
+    .Release.Namespace (include "wproofreader.servicePort" . | toString) .Values.virtualDir
+}}
+Dashboard is available at
+
+    {{ print $baseUrl }}
+
+Status can be checked at
+
+    {{ printf "%sapi/?cmd=status" $baseUrl }}
+
+And to check the installation version, go to
+
+    {{ printf "%sapi/?cmd=ver" $baseUrl }}
+
+Port forwarding to the app server can be enabled with the following command (sudo might be required on some platforms)
+
+    kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "wproofreader.fullname" . }} {{ .Values.webPort | default (include "wproofreader.defaultWebPort" .) }}:{{ include "wproofreader.servicePort" . }}

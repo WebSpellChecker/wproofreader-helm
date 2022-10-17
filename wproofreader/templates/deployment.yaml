@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wproofreader.fullname" . }}
+  labels:
+    {{- include "wproofreader.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "wproofreader.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "wproofreader.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "wproofreader.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: container-port
+              containerPort: {{ include "wproofreader.containerPort" . }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /{{ .Values.virtualDir }}
+              port: container-port
+              scheme: {{ if .Values.useHTTPS }}HTTPS{{ else }}HTTP{{ end }}
+          readinessProbe:
+            httpGet:
+              path: "/{{ .Values.virtualDir }}/api?cmd=ver"
+              port: container-port
+              scheme: {{ if .Values.useHTTPS }}HTTPS{{ else }}HTTP{{ end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.useHTTPS | and .Values.certFile }}
+            - mountPath: {{ .Values.certMountPath }}
+              name: tls-secret-volume
+            {{- end }}
+            {{- if .Values.dictionaries.localPath }}
+            - mountPath: {{ .Values.dictionaries.mountPath }}
+              name: dictionaries-volume
+            {{- end }}
+          env:
+            - name: PROTOCOL
+              value: {{ if .Values.useHTTPS }}"1"{{ else }}"2"{{ end }}
+            - name: WEB_PORT
+              value: {{ .Values.webPort | default (include "wproofreader.defaultWebPort" .) | quote }}
+            - name: VIRTUAL_DIR
+              value: {{ .Values.virtualDir }}
+            - name: LICENSE_TICKET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wproofreader.fullname" . }}-lic
+                  key: licence
+      volumes:
+        {{- if .Values.useHTTPS | and .Values.certFile }}
+        - name: tls-secret-volume
+          secret:
+            secretName: {{ include "wproofreader.fullname" . }}-cert
+        {{- end }}
+        {{- if .Values.dictionaries.localPath }}
+        - name: dictionaries-volume
+          persistentVolumeClaim:
+            claimName: {{ include "wproofreader.fullname" . }}-dict
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
