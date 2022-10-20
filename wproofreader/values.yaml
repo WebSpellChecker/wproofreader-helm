@@ -75,3 +75,12 @@ affinity:
         - matchExpressions:
             - key: "app.wproofreader.com/instance"
               operator: Exists
+
+# default deployment strategy for Kubernetes:
+# allow no more than 25% (no fewer than 1) of pods be
+# unavailable or allocated over max (surge) during update
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 25%
+    maxSurge: 25%
