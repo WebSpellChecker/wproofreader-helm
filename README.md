@@ -19,10 +19,10 @@ kubectl label node <name-of-the-node> app.wproofreader.com/instance=
 
 Now, the chart can be installed the usual way using all the defaults:
 ```shell
-helm install --create-namespace --namespace wpr wpr-app wproofreader 
+helm install --create-namespace --namespace wp wp-app wproofreader 
 ```
-where `wrp` is the namespace the app should be installed to,
-`wpr-app` – the release name, `wproofreader` – local chart directory.
+where `wp` is the namespace the app should be installed to,
+`wp-app` – the release name, `wproofreader` – local chart directory.
 
 API requests should be sent to the Kubernetes Service instance, reachable at
 ```text
@@ -30,7 +30,7 @@ http(s)://<service-name>.<namespace>.svc:<service-port>
 ```
 where 
 - `http` or `https` depends on the protocol used;
-- `<service-name>` is the name of the Service instance, which would be `wpr-app-wproofreader` with the above 
+- `<service-name>` is the name of the Service instance, which would be `wp-app-wproofreader` with the above 
 command, unless overwritten using `fullnameOverride` `values.yaml` parameter;
 - `<namespace>` is the namespace where the chart was installed;
 - `.svc` can be omitted in most cases, but is recommended to keep;
