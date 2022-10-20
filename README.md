@@ -77,3 +77,19 @@ To allow WProofreader AppServer to use your custom dictionaries, you have to do 
 as well as other `dictionaries` parameters if needed.
 4. Install the chart normally.
 
+The dictionary files can be uploaded after the chart installation, but the `dictionaries.localPath` 
+folder has to exist on the node beforehand. 
+Dictionaries can be uploaded to the node VM either the usual way (`scp`, `rsync`, `FTP` etc), or 
+using `kubectl cp` command. With `kubectl cp` we have to use one of pods of the deployment. 
+Once the files are uploaded, they will appear on all the pods automatically, and will persist 
+if any or all the pods are restarted. The workflow for this would look something like this:
+1. Get the name of one of the pods. For the Helm release named `wp-app` installed in the `wp` namespace, we can use
+   ```shell
+      POD=$(kubectl get pods -n wp -l app.kubernetes.io/instance=wp-app -o jsonpath="{.items[0].metadata.name}")
+   ```
+2. Upload the files to the pod
+   ```shell
+      kubectl cp -n wp <local path to files> $POD:/dictionaries
+   ```
+   where `/dictionaries` should be changed to whatever non-default `dictionaries.mountPath` value was used if applicable.
+   
