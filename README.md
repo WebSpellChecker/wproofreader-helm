@@ -41,11 +41,11 @@ in `values.yaml`.
 ## License activation
 
 There are three ways the service can be activated:
-1. During `docker build` by setting the `LICENSE_TICKET_ID` argument.
-2. During chart deployment through the `values.yaml` config file (`licenseTicketID` parameter).
-3. During chart deployment using the CLI flag:
+1. During `docker build` by setting the `LICENSE_TICKET_ID` argument in Dockerfile or CLI (`--build-arg LICENSE_TICKET_ID=${MY_LOCAL_VARIABLE}`).
+2. Through the `values.yaml` config file (`licenseTicketID` parameter).
+3. During chart deployment/upgrade CLI call using the flag:
 ```shell
---set licenseTicketID=$LICENSE_TICKET_ID
+--set licenseTicketID=${LICENSE_TICKET_ID}
 ```
 provided that `LICENSE_TICKET_ID` is set in your environment.
 
