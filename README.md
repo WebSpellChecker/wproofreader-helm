@@ -93,3 +93,26 @@ if any or all the pods are restarted. The workflow for this would look something
    ```
    where `/dictionaries` should be changed to whatever non-default `dictionaries.mountPath` value was used if applicable.
    
+## Common issues
+### Readiness probe failed
+
+Check the pod logs to see if the license ID has not been provided:
+```shell
+   POD=$(kubectl get pods -n <namespace> -l app.kubernetes.io/instance=<release-name> -o jsonpath="{.items[0].metadata.name}")
+   kubectl logs -n <namespace> $POD
+```
+
+If so, refer to [license section](#license-activation). 
+Existing release can be patched with
+```shell
+helm upgrade -n <namespace> <release-name> wproofreader --set licenseTicketID=<license ID> 
+```
+
+Keep in mind, that upcoming `helm upgrade`'s have to carry on the `licenseTicketID` flag, 
+so that it's not overwritten with the (empty) value from `values.yaml`.
+
+### Something got broken following `helm upgrade`
+
+Please make sure that all values arguments passed as `--set` CLI arguments 
+were duplicated with your latest `helm upgrade` call. Otherwise, they are overwritten
+with the contents of `values.yaml`.
