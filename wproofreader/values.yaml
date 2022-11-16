@@ -1,0 +1,143 @@
+
+#### Properties specific to WProofreader
+# set to true for the server to process HTTP requests over SSL only
+useHTTPS: false
+
+# external port of the container (for when you need to use default HTTP ports, or a specific one)
+# if empty - uses 80 for HTTP and 443 for HTTPS
+# for reference, container ports are 8080 for HTTP and 8443 for HTTPS
+webPort: ""
+
+# if you are using webspellchecker/wproofreader image from DockerHub, or have built your own, but did not provide a license key during the setup,
+# enter it here or pass it with and environment variable to conceal sensitive data: --set licenseTicketID=$MY_LICENSE_KEY
+# note: Helm does not allow its templates to read environment variables directly
+licenseTicketID: ""
+
+# directory of the service for web and API requests, e.g. http://localhost/wscservice/api?cmd=ver
+virtualDir: wscservice
+
+# relative paths of key and cert files within the Helm Chart directory
+# note: Helm cannot reach outside its chart directory to fetch your files
+# leave empty if they are already present in the container
+# use same file names as those specified in Dockerfile
+# (i.e. CERT_CERT_NAME and CERT_KEY_NAME variables in WProofreader official Dockerfile: https://github.com/WebSpellChecker/wproofreader-docker)
+# otherwise, one would have to manually edit the nginx config file (/etc/nginx/conf.d/wscservice.conf) on each Pod (in each container instance)
+certFile: ""
+keyFile: ""
+# directory where the certificate and its key will be kept inside the container
+# same remark as the one above on matching the Dockerfile variables applies
+# (i.e. CERT_DIR variable in WProofreader official Dockerfile: https://github.com/WebSpellChecker/wproofreader-docker)
+certMountPath: "/certificate"
+
+# `dictionaries` structure provide storage for custom user dictionaries inside the cluster
+dictionaries:
+  # absolute path of the directory on the Kubernetes node, where the files should be kept
+  # leave empty if no volume for custom dictionaries should be created
+  localPath: ""
+  # location inside the container that the above directory should be mounted to
+  # make sure it matches DICTIONARIES_DIR variable in the Dockerfile (https://github.com/WebSpellChecker/wproofreader-docker)
+  mountPath: "/dictionaries"
+  # maximum volume size – make sure it can accommodate all your data
+  volumeSize: 20Gi
+  # see Kubernetes reference on storage classes: https://kubernetes.io/docs/concepts/storage/storage-classes/
+  storageClassName: "standard"
+
+#### Deployment properties
+
+image:
+  # format <repository>/<image name> (no tag!)
+  repository: webspellchecker/wproofreader
+  # options: IfNotPresent, Never, Always
+  pullPolicy: IfNotPresent
+  # overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+# number of Pods (AppServer instances) to retain; is ignored if HorizontalPodAutoscaling is enabled (see below)
+replicaCount: 1
+
+# HorizontalPodAutoscaling parameters. For more info, see documentation: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale
+# if enabled, requires "resources" (see below)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# max resources usage allowed for pod
+# have to be specified if HorizontalPodAutoscaling is enabled
+# if none are given, uses all available on host
+# (to add your values remove "{}" form the line below, uncomment and edit the ones further down)
+resources: {}
+#  limits:
+#    cpu: 100m
+#    memory: 128Mi
+#  requests:
+#    cpu: 100m
+#    memory: 128Mi
+
+# if you keep you custom images in a private container repository, you might have to
+# provide an imagePullSecret. See: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+imagePullSecrets: []
+
+# overrides default chart name ("wproofreader") used for naming resources
+nameOverride: ""
+
+# overrides default full chart name ("RELEASE-wproofreader") used for naming resources
+fullnameOverride: ""
+
+# Kubernetes Service for the deployment
+# Within the cluster one could access an instance of the AppServer using
+# <service-name>.<namespace>:<service-port> as hostname.
+service:
+  # on service types: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  type: ClusterIP
+  # overrides the defaults (80 for HTTP, 443 for HTTPS)
+  port: ""
+  # overrides default name ("RELEASE-wproofreader")
+  name: ""
+
+# Service Account for the deployment (if create is false, uses the one for namespace "default")
+serviceAccount:
+  create: true
+  annotations: {}
+  # overrides default name "RELEASE-wproofreader"
+  name: ""
+
+# `key: value` annotations paris for the AppServer pods
+podAnnotations: {}
+
+# permissions for the deployment: 2000 group allows read-write access to the dictionaries persistent volume
+podSecurityContext:
+  fsGroup: 2000
+
+# See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+securityContext: {}
+#  capabilities:
+#   drop:
+#   - ALL
+#  readOnlyRootFilesystem: true
+#  runAsNonRoot: true
+#  runAsUser: 1000
+
+# affinity specifies a set of labels that a candidate node for hosting AppServer deployment should have
+# by default, searches for existing label (value ignored, can be empty) "app.wproofreader.com/instance"
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: "app.wproofreader.com/instance"
+              operator: Exists
+
+# default deployment strategy for Kubernetes:
+# allow no more than 25% (no fewer than 1) of pods be
+# unavailable or allocated over max (surge) during update
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 25%
+    maxSurge: 25%
+
+# See "Taints and Tolerations": https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+tolerations: []

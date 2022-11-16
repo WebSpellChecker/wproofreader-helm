@@ -1,0 +1,9 @@
+apiVersion: v2
+name: wproofreader
+description: A Helm chart for deploying webspellchecker/wproofreader in Kubernetes
+
+type: application
+
+version: 0.1.0
+
+appVersion: "5.25.0"
