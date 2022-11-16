@@ -2,7 +2,7 @@
 
 This Helm chart provides all the basic infrastructure needed to deploy 
 WProofreader AppServer to a Kubernetes cluster.
-By default, the image is pulled from [WSC DockerHub](https://hub.docker.com/r/webspellchecker/wproofreader), 
+By default, the image is pulled from [WebSpellChecker Docker Hub](https://hub.docker.com/r/webspellchecker/wproofreader), 
 however, many users would require building their own local images with custom configuration. 
 Please refer to [our other repository](https://github.com/WebSpellChecker/wproofreader-docker/) to get started with building your own docker image.
 
@@ -12,17 +12,26 @@ The chart uses `nodeAffinity` for mounting Persistent Volume of type `local`.
 This also allows the user to specify which node will host the WProofreader AppServer 
 on a multi-node cluster.
 
-To choose the node for this role, one has to attach a `app.wproofreader.com/instance` label to it:
+To choose the node for this role, one has to attach a label to it. It can be whatever you want it to be,
+e.g. `proofreader.your-company.com/app`:
 ```shell
-kubectl label node <name-of-the-node> app.wproofreader.com/instance=
+kubectl label node <name-of-the-node> proofreader.your-company.com/app=
 ```
+
+Keep in mind that your custom label has to be either updated in `values.yaml`
+(`affinityLabel` key, recommended), or passed to `helm` calls using 
+`--set affinityLabel=proofreader.your-company.com/app`.
 
 Now, the chart can be installed the usual way using all the defaults:
 ```shell
-helm install --create-namespace --namespace wp wp-app wproofreader 
+git clone https://github.com/WebSpellChecker/wproofreader-helm.git
+cd wproofreader-helm
+helm install --create-namespace --namespace wsc wsc-app-5-x-x wproofreader --set affinityLabel=proofreader.your-company.com/app 
 ```
-where `wp` is the namespace the app should be installed to,
-`wp-app` – the release name, `wproofreader` – local chart directory.
+where `wsc` is the namespace the app should be installed to,
+`wsc-app-5-x-x` – the release name for product version 5.x.x, 
+`wproofreader` – local chart directory, 
+`--set affinityLabel=proofreader.your-company.com/app` – optional affinity label, see previous paragraph.
 
 API requests should be sent to the Kubernetes Service instance, reachable at
 ```text
@@ -69,7 +78,7 @@ The defaults for the DockerHub image are `cert.pem`, `key.pem`, and `/certificat
 
 ## Custom dictionaries
 
-To allow WProofreader AppServer to use your custom dictionaries, you have to do the following:
+To allow WProofreader Server to use your custom dictionaries, you have to do the following:
 1. Upload the files to some directory on the node, where the chart will be deployed
    (remember, it's the one with the `app.wproofreader.com/instance=` label).
 2. Set `dictionaries.localPath` parameter to the absolute path of this directory.

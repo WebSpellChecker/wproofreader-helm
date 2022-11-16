@@ -86,10 +86,13 @@ spec:
           persistentVolumeClaim:
             claimName: {{ include "wproofreader.fullname" . }}-dict
         {{- end }}
-      {{- with .Values.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: {{ .Values.affinityLabel }}
+                    operator: Exists
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
