@@ -123,7 +123,7 @@ securityContext: {}
 # the label is used for setting the affinity parameter, which specifies a set of
 # labels that a candidate node for hosting the deployment should have
 # we recommend customizing it for your use
-affinityLabel: "proofreader.your-company.com/app"
+affinityLabel: "proofreader.company-domain.com/app"
 
 # default deployment strategy for Kubernetes:
 # allow no more than 25% (no fewer than 1) of pods be
