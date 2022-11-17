@@ -14,7 +14,12 @@ spec:
     - ReadWriteMany
   local:
     path: {{ .Values.dictionaries.localPath }}
-  {{- .Values.affinity | toYaml | replace "requiredDuringSchedulingIgnoredDuringExecution" "required" | nindent 2 }}
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: {{ .Values.affinityLabel }}
+              operator: Exists
 
 ---
 apiVersion: v1
