@@ -162,7 +162,7 @@ helm get values --all --namespace wsc wsc-app-5-25-0 > wsc-app-5-25-0-values.yam
 where `wsc` is the namespace and `wsc-app-5-25-0` – the name of your release, 
 and `wsc-app-5-25-0-values.yaml` – name of the file the data will be written to.
 
-Extract the full Kubernetes manifest(s) as follows:
+2. Extract the full Kubernetes manifest(s) as follows:
 ```shell
 helm get manifest --namespace wsc wsc-app-5-25-0 > manifests.yaml
 ```
