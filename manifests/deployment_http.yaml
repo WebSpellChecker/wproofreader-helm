@@ -1,11 +1,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wsc-app-sample-wproofreader
+  name: wproofreader-app
   labels:
+    helm.sh/chart: wproofreader-1.0.0
     app.kubernetes.io/name: wproofreader
-    app.kubernetes.io/instance: wsc-app-sample
-    app.kubernetes.io/version: "5.25.0"
+    app.kubernetes.io/instance: wproofreader-app
+    app.kubernetes.io/version: "5.34.1"
+    app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
   strategy:
@@ -16,68 +18,63 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: wproofreader
-      app.kubernetes.io/instance: wsc-app-sample
+      app.kubernetes.io/instance: wproofreader-app
   template:
     metadata:
       annotations:
-        checksum/secrets: 3d370016ca764dcc4fbace6c41ec622b592a9cd42d3da47118149693c2b2b5e0
+        checksum/secrets: 3dc935bf0e71c4a7d9f2b3cf2c9743c0ad...
       labels:
         app.kubernetes.io/name: wproofreader
-        app.kubernetes.io/instance: wsc-app-sample
+        app.kubernetes.io/instance: wproofreader-app
     spec:
-      serviceAccountName: wsc-app-sample-wproofreader
+      serviceAccountName: wproofreader-app
       securityContext:
         fsGroup: 2000
       containers:
         - name: wproofreader
           securityContext:
             {}
-          image: "webspellchecker/wproofreader:5.25.0"
+          image: "webspellchecker/wproofreader:5.34.1"
           imagePullPolicy: IfNotPresent
           ports:
             - name: container-port
-              containerPort: 8443
+              containerPort: 8080
               protocol: TCP
           livenessProbe:
             httpGet:
               path: /wscservice
               port: container-port
-              scheme: HTTPS
+              scheme: HTTP
           readinessProbe:
             httpGet:
-              path: "/wscservice/api?cmd=ver"
+              path: "/wscservice/api?cmd=status"
               port: container-port
-              scheme: HTTPS
+              scheme: HTTP
           resources:
             {}
           volumeMounts:
-            - mountPath: /certificate
-              name: tls-secret-volume
             - mountPath: /dictionaries
               name: dictionaries-volume
           env:
             - name: PROTOCOL
-              value: "1"
+              value: "2"
             - name: WEB_PORT
-              value: "443"
+              value: "80"
             - name: VIRTUAL_DIR
               value: wscservice
             - name: LICENSE_TICKET_ID
               valueFrom:
                 secretKeyRef:
-                  name: wsc-app-sample-wproofreader-lic
+                  name: wproofreader-app-lic
                   key: license
       volumes:
-        - name: tls-secret-volume
-          secret:
-            secretName: wsc-app-sample-wproofreader-cert
         - name: dictionaries-volume
           persistentVolumeClaim:
-            claimName: wsc-app-sample-wproofreader-dict
+            claimName: wproofreader-app-dict
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: proofreader.company-domain.com/app
+                  - key: wproofreader.company-domain.com/app
                     operator: Exists

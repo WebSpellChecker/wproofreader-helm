@@ -15,31 +15,15 @@ Before you begin, make sure you have the required environment:
 
 ## Basic installation
 
-The chart uses `nodeAffinity` for mounting Persistent Volume of type `local`.
-This also allows the user to specify which node will host the WProofreader Server 
-on a cluster (even a single-node one).
-
-To assign this role to a node, one has to attach a label to it. It can be whatever you want it to be,
-e.g. `proofreader.your-company.com/app`:
-```shell
-kubectl label node <name-of-the-node> proofreader.company-domain.com/app=
-```
-Note that `=` is required, but the value after it is not important (empty in this example).
-
-Keep in mind that your custom label has to be either updated in `values.yaml`
-(`affinityLabel` key, recommended), or passed to `helm` calls using 
-`--set affinityLabel=proofreader.company-domain.com/app`.
-
-Now, the chart can be installed the usual way using all the defaults:
+The Chart can be installed the usual way using all the defaults:
 ```shell
 git clone https://github.com/WebSpellChecker/wproofreader-helm.git
 cd wproofreader-helm
-helm install --create-namespace --namespace wsc wsc-app-5-x-x wproofreader --set affinityLabel=proofreader.company-domain.com/app 
+helm install --create-namespace --namespace wsc wproofreader-app wproofreader 
 ```
 where `wsc` is the namespace the app should be installed to,
-`wsc-app-5-25-0` – the release name, where we specifically mention the product version 5.25.0, 
-`wproofreader` – local chart directory, 
-`--set affinityLabel=proofreader.company-domain.com/app` – optional affinity label, see previous paragraph.
+`wproofreader-app` – a Helm release name, 
+`wproofreader` – local Chart directory.
 
 API requests should be sent to the Kubernetes Service instance, reachable at
 ```text
@@ -47,7 +31,7 @@ http(s)://<service-name>.<namespace>.svc:<service-port>
 ```
 where 
 - `http` or `https` depends on the protocol used;
-- `<service-name>` is the name of the Service instance, which would be `wsc-app-5-25-0-wproofreader` with the above 
+- `<service-name>` is the name of the Service instance, which would be `wproofreader-app` with the above 
 command, unless overwritten using `fullnameOverride` `values.yaml` parameter;
 - `<namespace>` is the namespace where the chart was installed;
 - `.svc` can be omitted in most cases, but is recommended to keep;
@@ -90,21 +74,40 @@ The defaults for the DockerHub image are `cert.pem`, `key.pem`, and `/certificat
 
 To allow WProofreader Server to use your custom dictionaries, you have to do the following:
 1. Upload the files to some directory on the node, where the chart will be deployed
-   (remember, it's the one with the `proofreader.company-domain.com/app` label).
+   (remember, it's the one with the `wproofreader.company-domain.com/app` label).
 2. Set `dictionaries.localPath` parameter to the absolute path of this directory.
 3. Optionally, edit `dictionaries.mountPath` value if non-default one was used in `Dockerfile`,
 as well as other `dictionaries` parameters if needed.
 4. Install the chart normally.
 
+The Chart uses `nodeAffinity` for mounting Persistent Volume of type `local`.
+This also allows the user to specify which node will host the WProofreader Server 
+on a cluster (even a single-node one).
+
+To assign this role to a node, one has to attach a label to it. It can be whatever you want it to be,
+e.g. `proofreader.your-company.com/app`:
+```shell
+kubectl label node <name-of-the-node> wproofreader.company-domain.com/app=
+```
+Note that `=` is required, but the value after it is not important (empty in this example).
+
+Keep in mind that your custom label has to be either updated in `values.yaml`
+(`nodeAffinityLabel` key, recommended), or passed to `helm` calls using 
+`--set nodeAffinityLabel=wproofreader.company-domain.com/app`.
+
+How to install the Chart with custom dictionaries feature enabled and the local path set to the directory on the node where dictionaries are stored:
+```shell
+helm install --create-namespace --namespace wsc wproofreader-app wproofreader --set nodeAffinityLabel=wproofreader.company-domain.com/app --set dictionaries.enabled=true --set dictionaries.localPath=/dictionaries
+```
 The dictionary files can be uploaded after the chart installation, but the `dictionaries.localPath` 
 folder has to exist on the node beforehand. 
 Dictionaries can be uploaded to the node VM either the usual way (`scp`, `rsync`, `FTP` etc), or 
 using `kubectl cp` command. With `kubectl cp` we have to use one of pods of the deployment. 
 Once the files are uploaded, they will appear on all the pods automatically, and will persist 
 if any or all the pods are restarted. The workflow for this would look something like this:
-1. Get the name of one of the pods. For the Helm release named `wsc-app-5-25-0` installed in the `wsc` namespace, we can use
+1. Get the name of one of the pods. For the Helm release named `wproofreader-app` installed in the `wsc` namespace, we can use
    ```shell
-      POD=$(kubectl get pods -n wsc -l app.kubernetes.io/instance=wsc-app-5-25-0 -o jsonpath="{.items[0].metadata.name}")
+      POD=$(kubectl get pods -n wsc -l app.kubernetes.io/instance=wproofreader-app -o jsonpath="{.items[0].metadata.name}")
    ```
 2. Upload the files to the pod
    ```shell
@@ -112,6 +115,46 @@ if any or all the pods are restarted. The workflow for this would look something
    ```
    where `/dictionaries` should be changed to whatever non-default `dictionaries.mountPath` value was used if applicable.
    
+There is also a way in the Chart to specify an already existing Persistent Volume Claim (PVC) with dictionaries that can be configured to operate on multiple nodes (e.g., NFS). To do this, enable the custom dictionaries feature by setting the `dictionaries.enabled` parameter to true and specifying the name of the existing PVC in the `dictionaries.existingClaim` parameter.
+
+**Recommended Approach:** Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
+
+However, please note that provisioning the Persistent Volume (PV) and PVC for storage backends like NFS is outside the scope of this Chart. You will need to provision the PV and PVC separately according to your storage backend's documentation before using the `dictionaries.existingClaim` parameter.
+
+## Use in Production
+
+For production deployments, it is highly recommended to specify resource requests and limits for your Kubernetes pods. This helps ensure that your applications have the necessary resources to run efficiently while preventing them from consuming excessive resources on the cluster, which can impact other applications.
+This can be configured in the `values.yaml` file under the `resources` section.
+
+### Recommended Resource Requests and Limits
+
+Below are the recommended values for resource requests and limits. These values are based on the minimum requirements for running the WProofreader Server in a production environment. You may need to adjust these values based on your specific requirements and usage patterns, especially when deploying AI-models, to ensure optimal performance and resource utilization.
+
+```yaml
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "0.5"
+  limits:
+    memory: "3Gi"
+    cpu: "2"
+```
+
+### Readiness and Liveness Probes
+
+The Helm chart includes readiness and liveness probes to help Kubernetes manage the lifecycle of the WProofreader Server pods. These probes are used to determine when the pod is ready to accept traffic and when it should be restarted if it becomes unresponsive.
+
+You may thoughtfully modify the Cahrt default values based on your environment's resources and application needs in the `values.yaml` file under the `readinessProbeOptions` and `livenessProbeOptions` sections.
+Example:
+```yaml
+readinessProbeOptions:
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+```
+
 ## Common issues
 ### Readiness probe failed
 
@@ -157,18 +200,22 @@ The service might fail to start up properly if misconfigured. For troubleshootin
 There are several options for how to gather needed details:
 1. Get the values (user-configurable options) used by Help to generate Kubernetes manifests:
 ```shell
-helm get values --all --namespace wsc wsc-app-5-25-0 > wsc-app-5-25-0-values.yaml
+helm get values --all --namespace wsc wproofreader-app > wproofreader-app-values.yaml
 ```
-where `wsc` is the namespace and `wsc-app-5-25-0` – the name of your release, 
-and `wsc-app-5-25-0-values.yaml` – name of the file the data will be written to.
+where `wsc` is the namespace and `wproofreader-app` – the name of your release, 
+and `wproofreader-app-values.yaml` – name of the file the data will be written to.
 
 2. Extract the full Kubernetes manifest(s) as follows:
 ```shell
-helm get manifest --namespace wsc wsc-app-5-25-0 > manifests.yaml
+helm get manifest --namespace wsc wproofreader-app > manifests.yaml
 ```
 
 If, for any reason, you do not have access to `helm`, same can be accomplished using 
 `kubectl`. To get manifests for all resources in `wsc` namespace, use:
 ```shell
 kubectl get all --namespace wsc -o yaml > manifests.yaml
+```
+3. Get the logs of all the wsproofreader-app pods in the `wsc` namespace:
+```shell
+kubectl logs -n wsc -l app.kubernetes.io/instance=wproofreader-app
 ```

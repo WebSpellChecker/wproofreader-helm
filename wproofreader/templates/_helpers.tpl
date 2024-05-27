@@ -62,6 +62,15 @@ Create the name of the service account to use.
 {{- end }}
 
 {{/*
+Create the name of the PersistentVolumeClaim.
+*/}}
+{{- define "wproofreader.pvcName" -}}
+{{- if and .Values.dictionaries.enabled (not .Values.dictionaries.existingClaim) }}
+{{- default (include "wproofreader.fullname" .) }}-dict
+{{- end }}
+{{- end }}
+
+{{/*
 Prints key-value pairs encoded in base 64.
 */}}
 {{- define "wproofreader.printKeyValue" -}}

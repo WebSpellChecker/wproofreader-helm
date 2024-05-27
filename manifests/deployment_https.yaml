@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wsc-app-sample-wproofreader
+  labels:
+    app.kubernetes.io/name: wproofreader
+    app.kubernetes.io/instance: wsc-app-sample
+    app.kubernetes.io/version: "5.25.0"
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wproofreader
+      app.kubernetes.io/instance: wsc-app-sample
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: 3d370016ca764dcc4fbace6c41e...
+      labels:
+        app.kubernetes.io/name: wproofreader
+        app.kubernetes.io/instance: wsc-app-sample
+    spec:
+      serviceAccountName: wsc-app-sample-wproofreader
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: wproofreader
+          securityContext:
+            {}
+          image: "webspellchecker/wproofreader:5.34.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: container-port
+              containerPort: 8443
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /wscservice
+              port: container-port
+              scheme: HTTPS
+          readinessProbe:
+            httpGet:
+              path: "/wscservice/api?cmd=status"
+              port: container-port
+              scheme: HTTPS
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /certificate
+              name: tls-secret-volume
+            - mountPath: /dictionaries
+              name: dictionaries-volume
+          env:
+            - name: PROTOCOL
+              value: "1"
+            - name: WEB_PORT
+              value: "443"
+            - name: VIRTUAL_DIR
+              value: wscservice
+            - name: LICENSE_TICKET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: wproofreader-app-lic
+                  key: license
+      volumes:
+        - name: tls-secret-volume
+          secret:
+            secretName: wproofreader-app-cert
+        - name: dictionaries-volume
+          persistentVolumeClaim:
+            claimName: wproofreader-app-dict
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: wproofreader.company-domain.com/app
+                    operator: Exists
