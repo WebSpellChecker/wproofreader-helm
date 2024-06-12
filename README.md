@@ -21,9 +21,9 @@ git clone https://github.com/WebSpellChecker/wproofreader-helm.git
 cd wproofreader-helm
 helm install --create-namespace --namespace wsc wproofreader-app wproofreader 
 ```
-where `wsc` is the namespace the app should be installed to,
-`wproofreader-app` – a Helm release name, 
-`wproofreader` – local Chart directory.
+where `wsc` is the namespace where the app should be installed,
+`wproofreader-app` is the Helm release name, 
+`wproofreader` is the local Chart directory.
 
 API requests should be sent to the Kubernetes Service instance, reachable at
 ```text
@@ -72,40 +72,40 @@ The defaults for the DockerHub image are `cert.pem`, `key.pem`, and `/certificat
 
 ## Custom dictionaries
 
-To allow WProofreader Server to use your custom dictionaries, you have to do the following:
-1. Upload the files to some directory on the node, where the chart will be deployed
-   (remember, it's the one with the `wproofreader.company-domain.com/app` label).
+To enable WProofreader Server to use your custom dictionaries, follow these steps:
+1. Upload the files to a directory on the node where the chart will be deployed.
+   Ensure this node has `wproofreader.domain-name.com/app` label.
 2. Set `dictionaries.localPath` parameter to the absolute path of this directory.
 3. Optionally, edit `dictionaries.mountPath` value if non-default one was used in `Dockerfile`,
 as well as other `dictionaries` parameters if needed.
-4. Install the chart normally.
+4. Install the chart as usual.
 
 The Chart uses `nodeAffinity` for mounting Persistent Volume of type `local`.
-This also allows the user to specify which node will host the WProofreader Server 
-on a cluster (even a single-node one).
+This allows the user to specify which node will host WProofreader Server 
+on a cluster, even a single-node one.
 
-To assign this role to a node, one has to attach a label to it. It can be whatever you want it to be,
-e.g. `proofreader.your-company.com/app`:
+To assign this role to a node, you need to attach a label to it. It can be any label you choose,
+e.g. `wproofreader.your-company.com/app`:
 ```shell
-kubectl label node <name-of-the-node> wproofreader.company-domain.com/app=
+kubectl label node <name-of-the-node> wproofreader.domain-name.com/app=
 ```
-Note that `=` is required, but the value after it is not important (empty in this example).
+Note that `=` is required but the value after it is not important (empty in this example).
 
 Keep in mind that your custom label has to be either updated in `values.yaml`
 (`nodeAffinityLabel` key, recommended), or passed to `helm` calls using 
-`--set nodeAffinityLabel=wproofreader.company-domain.com/app`.
+`--set nodeAffinityLabel=wproofreader.domain-name.com/app`.
 
-How to install the Chart with custom dictionaries feature enabled and the local path set to the directory on the node where dictionaries are stored:
+To install the Chart with custom dictionaries feature enabled and the local path set to the directory on the node where dictionaries are stored:
 ```shell
-helm install --create-namespace --namespace wsc wproofreader-app wproofreader --set nodeAffinityLabel=wproofreader.company-domain.com/app --set dictionaries.enabled=true --set dictionaries.localPath=/dictionaries
+helm install --create-namespace --namespace wsc wproofreader-app wproofreader --set nodeAffinityLabel=wproofreader.domain-name.com/app --set dictionaries.enabled=true --set dictionaries.localPath=/dictionaries
 ```
 The dictionary files can be uploaded after the chart installation, but the `dictionaries.localPath` 
-folder has to exist on the node beforehand. 
-Dictionaries can be uploaded to the node VM either the usual way (`scp`, `rsync`, `FTP` etc), or 
-using `kubectl cp` command. With `kubectl cp` we have to use one of pods of the deployment. 
-Once the files are uploaded, they will appear on all the pods automatically, and will persist 
-if any or all the pods are restarted. The workflow for this would look something like this:
-1. Get the name of one of the pods. For the Helm release named `wproofreader-app` installed in the `wsc` namespace, we can use
+folder must exist on the node beforehand. 
+Dictionaries can be uploaded to the node VM using standard methods (`scp`, `rsync`, `FTP` etc) or 
+the `kubectl cp` command. With `kubectl cp`, you need to use one of the deployment's pods. 
+Once uploaded, the files will automatically appear on all pods and persist
+even if the pods are restarted. Follow these steps:
+1. Get the name of one of the pods. For the Helm release named `wproofreader-app` in the `wsc` namespace, use
    ```shell
       POD=$(kubectl get pods -n wsc -l app.kubernetes.io/instance=wproofreader-app -o jsonpath="{.items[0].metadata.name}")
    ```
@@ -113,38 +113,39 @@ if any or all the pods are restarted. The workflow for this would look something
    ```shell
       kubectl cp -n wsc <local path to files> $POD:/dictionaries
    ```
-   where `/dictionaries` should be changed to whatever non-default `dictionaries.mountPath` value was used if applicable.
+   Replace `/dictionaries` with your custom `dictionaries.mountPath` value if applicable.
    
-There is also a way in the Chart to specify an already existing Persistent Volume Claim (PVC) with dictionaries that can be configured to operate on multiple nodes (e.g., NFS). To do this, enable the custom dictionaries feature by setting the `dictionaries.enabled` parameter to true and specifying the name of the existing PVC in the `dictionaries.existingClaim` parameter.
+There is also a way in the Chart to specify an already existing Persistent Volume Claim (PVC) with dictionaries that can be configured to operate on multiple nodes (e.g., NFS). To do this, enable the custom dictionary feature by setting the `dictionaries.enabled` parameter to `true` and specifying the name of the existing PVC in the `dictionaries.existingClaim` parameter.
 
-**Recommended Approach:** Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
+**Recommended approach:** Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
 
 However, please note that provisioning the Persistent Volume (PV) and PVC for storage backends like NFS is outside the scope of this Chart. You will need to provision the PV and PVC separately according to your storage backend's documentation before using the `dictionaries.existingClaim` parameter.
 
-## Use in Production
+## Use in production
 
-For production deployments, it is highly recommended to specify resource requests and limits for your Kubernetes pods. This helps ensure that your applications have the necessary resources to run efficiently while preventing them from consuming excessive resources on the cluster, which can impact other applications.
+For production deployments, it is highly recommended **to specify resource requests and limits for your Kubernetes pods**. This helps ensure that your applications have the necessary resources to run efficiently while preventing them from consuming excessive resources on the cluster which can impact other applications.
 This can be configured in the `values.yaml` file under the `resources` section.
 
-### Recommended Resource Requests and Limits
+### Recommended resource requests and limits
 
-Below are the recommended values for resource requests and limits. These values are based on the minimum requirements for running the WProofreader Server in a production environment. You may need to adjust these values based on your specific requirements and usage patterns, especially when deploying AI-models, to ensure optimal performance and resource utilization.
+Below are the recommended resource requests and limits for deploying WProofreader Server v5.34.x with English (en_US, en_GB, en_CA, and en_AU) and including features such as a style guide, spelling autocorrect, Named-Entity Recognition (NER), and text autocomplete. These values reflect the minimum requirements for running WProofreader Server in a production environment.
+Depending on your specific needs and usage patterns, especially if deploying AI language models for enhanced proofreading, you may need to adjust these values to ensure optimal performance and resource utilization.
 
 ```yaml
 resources:
   requests:
-    memory: "1Gi"
-    cpu: "0.5"
+    memory: "4Gi"
+    cpu: "1"
   limits:
-    memory: "3Gi"
-    cpu: "2"
+    memory: "8Gi"
+    cpu: "4"
 ```
 
-### Readiness and Liveness Probes
+### Readiness and liveness probes
 
 The Helm chart includes readiness and liveness probes to help Kubernetes manage the lifecycle of the WProofreader Server pods. These probes are used to determine when the pod is ready to accept traffic and when it should be restarted if it becomes unresponsive.
 
-You may thoughtfully modify the Cahrt default values based on your environment's resources and application needs in the `values.yaml` file under the `readinessProbeOptions` and `livenessProbeOptions` sections.
+You may thoughtfully modify the Chart default values based on your environment's resources and application needs in the `values.yaml` file under the `readinessProbeOptions` and `livenessProbeOptions` sections.
 Example:
 ```yaml
 readinessProbeOptions:
@@ -154,6 +155,16 @@ readinessProbeOptions:
   successThreshold: 1
   failureThreshold: 3
 ```
+
+### Application scaling
+Wproofreader Server can be scaled horizontally by changing the number of replicas.
+This can be done by setting the `replicaCount` parameter in the `values.yaml` file. 
+The default value is `1`. For example, to scale the application to 3 replicas, set the `--set replicaCount=3` flag when installing the Helm chart.
+
+For dynamic scaling based on resource utilization, you can use Kubernetes Horizontal Pod Autoscaler (HPA). 
+To use the HPA, you need to turn on the metrics server in your Kubernetes cluster. The HPA will then automatically change the number of pods in a deployment based on how much CPU is being used.
+The HPA is not enabled by default in the Helm chart. To enable it, set the `autoscaling.enabled` parameter to `true` in the `values.yaml` file.
+**Important Note:** WProofreader Server can be scaled only based on CPU usage metric. The `targetMemoryUtilizationPercentage` is not supported.
 
 ## Common issues
 ### Readiness probe failed
@@ -197,7 +208,7 @@ helm template --namespace wsc wsc-app-sample wproofreader \
 
 The service might fail to start up properly if misconfigured. For troubleshooting, it can be beneficial to get the full configuration you attempted to deploy. If needed, later it can be shared with the support team for further investigation.
 
-There are several options for how to gather needed details:
+There are several ways to gather necessary details:
 1. Get the values (user-configurable options) used by Help to generate Kubernetes manifests:
 ```shell
 helm get values --all --namespace wsc wproofreader-app > wproofreader-app-values.yaml
@@ -210,12 +221,12 @@ and `wproofreader-app-values.yaml` – name of the file the data will be written
 helm get manifest --namespace wsc wproofreader-app > manifests.yaml
 ```
 
-If, for any reason, you do not have access to `helm`, same can be accomplished using 
-`kubectl`. To get manifests for all resources in `wsc` namespace, use:
+If you do not have access to `helm`, same can be accomplished using 
+`kubectl`. To get manifests for all resources in the `wsc` namespace, run:
 ```shell
 kubectl get all --namespace wsc -o yaml > manifests.yaml
 ```
-3. Get the logs of all the wsproofreader-app pods in the `wsc` namespace:
+3. Retrieve the logs of all `wsproofreader-app` pods in the `wsc` namespace:
 ```shell
 kubectl logs -n wsc -l app.kubernetes.io/instance=wproofreader-app
 ```

@@ -31,12 +31,12 @@ certMountPath: "/certificate"
 
 # `dictionaries` structure provide storage for custom user dictionaries inside the cluster
 dictionaries:
-  # enable or disable persistentance of Custom Dictionaries feature
+  # enable or disable persistence of custom dictionary feature
   enabled: false
   # name of existing the PersistentVolumeClaim to use for storing dictionaries
   existingClaim: ""
-  # absolute path of the directory on the Kubernetes node, where the files should be kept
-  # leave empty if no volume for custom dictionaries should be created
+  # absolute path of the directory on the Kubernetes node where the files should be kept.
+  # leave empty if no volume for custom dictionaries should be created.
   localPath: ""
   # location inside the container that the above directory should be mounted to
   # make sure it matches DICTIONARIES_DIR variable in the Dockerfile (https://github.com/WebSpellChecker/wproofreader-docker)
@@ -53,7 +53,7 @@ image:
   repository: webspellchecker/wproofreader
   # options: IfNotPresent, Never, Always
   pullPolicy: IfNotPresent
-  # overrides the image tag whose default is the chart appVersion
+  # overrides the image tag whose default is the chart appVersion.
   tag: ""
 
 # Readiness Options allows customizing the default readiness probe
@@ -75,7 +75,7 @@ replicaCount: 1
 
 # HorizontalPodAutoscaling parameters. For more info, see documentation: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale
 # if enabled, requires "resources" (see below)
-# Note: Wproofreader is able to scale only based on CPU usage metric. The targetMemoryUtilizationPercentage is not supported.
+# Note: WProofreader Server can be scaled only based on CPU usage metric. The targetMemoryUtilizationPercentage is not supported.
 autoscaling: {}
 #  enabled: false
 #  minReplicas: 1
@@ -88,12 +88,12 @@ autoscaling: {}
 # (to add your values remove "{}" form the line below, uncomment and edit the ones further down)
 # Ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 resources: {}
-#  limits:
-#    cpu: 100m
-#    memory: 128Mi
 #  requests:
-#    cpu: 100m
-#    memory: 128Mi
+#    memory: "4Gi"
+#    cpu: "1"
+#  limits:
+#    memory: "8Gi"
+#    cpu: "4"
 
 # if you keep you custom images in a private container repository, you might have to
 # provide an imagePullSecret.
@@ -146,7 +146,7 @@ securityContext: {}
 # labels that a candidate node for hosting the deployment should have
 # we recommend customizing it for your use
 # Example:
-## nodeAffinityLabel: "wproofreader.company-domain.com/app"
+## nodeAffinityLabel: "wproofreader.domain-name.com/app"
 nodeAffinityLabel: ""
 
 # Affinity for pod assignment (evaluated as template)

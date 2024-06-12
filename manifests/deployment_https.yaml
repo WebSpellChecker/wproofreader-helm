@@ -32,7 +32,7 @@ spec:
         - name: wproofreader
           securityContext:
             {}
-          image: "webspellchecker/wproofreader:5.34.1"
+          image: "webspellchecker/wproofreader:5.34.3"
           imagePullPolicy: IfNotPresent
           ports:
             - name: container-port
@@ -79,5 +79,5 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                  - key: wproofreader.company-domain.com/app
+                  - key: wproofreader.domain-name.com/app
                     operator: Exists
