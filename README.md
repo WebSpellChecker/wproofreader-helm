@@ -85,7 +85,7 @@ This allows the user to specify which node will host WProofreader Server
 on a cluster, even a single-node one.
 
 To assign this role to a node, you need to attach a label to it. It can be any label you choose,
-e.g. `wproofreader.your-company.com/app`:
+e.g. `wproofreader.domain-name.com/app`:
 ```shell
 kubectl label node <name-of-the-node> wproofreader.domain-name.com/app=
 ```
@@ -157,7 +157,7 @@ readinessProbeOptions:
 ```
 
 ### Application scaling
-Wproofreader Server can be scaled horizontally by changing the number of replicas.
+WProofreader Server can be scaled horizontally by changing the number of replicas.
 This can be done by setting the `replicaCount` parameter in the `values.yaml` file. 
 The default value is `1`. For example, to scale the application to 3 replicas, set the `--set replicaCount=3` flag when installing the Helm chart.
 
@@ -195,7 +195,7 @@ Otherwise, they are overwritten with the contents of `values.yaml`.
 For illustration purposes, please find exported Kubernetes manifests in the `manifests` folder.
 If you need to export the manifest files from this sample Helm Chart, please use the following command:
 ```shell
-helm template --namespace wsc wsc-app-sample wproofreader \
+helm template --namespace wsc wproofreader-app wproofreader \
   --set licenseTicketID=qWeRtY123 \
   --set useHTTPS=true \
   --set certFile=cert.pem \

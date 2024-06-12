@@ -1,11 +1,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wsc-app-sample-wproofreader
+  name: wproofreader-app
   labels:
+    helm.sh/chart: wproofreader-1.0.0
     app.kubernetes.io/name: wproofreader
-    app.kubernetes.io/instance: wsc-app-sample
-    app.kubernetes.io/version: "5.25.0"
+    app.kubernetes.io/instance: wproofreader-app
+    app.kubernetes.io/version: "5.34.3"
+    app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
   strategy:
@@ -16,16 +18,16 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: wproofreader
-      app.kubernetes.io/instance: wsc-app-sample
+      app.kubernetes.io/instance: wproofreader-app
   template:
     metadata:
       annotations:
         checksum/secrets: 3d370016ca764dcc4fbace6c41e...
       labels:
         app.kubernetes.io/name: wproofreader
-        app.kubernetes.io/instance: wsc-app-sample
+        app.kubernetes.io/instance: wproofreader-app
     spec:
-      serviceAccountName: wsc-app-sample-wproofreader
+      serviceAccountName: wproofreader-app
       securityContext:
         fsGroup: 2000
       containers:
