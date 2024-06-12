@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wproofreader-app
+  labels:
+    helm.sh/chart: wproofreader-1.0.0
+    app.kubernetes.io/name: wproofreader
+    app.kubernetes.io/instance: wproofreader-app
+    app.kubernetes.io/version: "5.34.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wproofreader
+      app.kubernetes.io/instance: wproofreader-app
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: 3dc935bf0e71c4a7d9f2b3cf2c9743c0ad...
+      labels:
+        app.kubernetes.io/name: wproofreader
+        app.kubernetes.io/instance: wproofreader-app
+    spec:
+      serviceAccountName: wproofreader-app
+      securityContext:
+        fsGroup: 2000
+      containers:
+        - name: wproofreader
+          securityContext:
+            {}
+          image: "webspellchecker/wproofreader:5.34.3"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: container-port
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /wscservice
+              port: container-port
+              scheme: HTTP
+          readinessProbe:
+            httpGet:
+              path: "/wscservice/api?cmd=status"
+              port: container-port
+              scheme: HTTP
+          resources:
+            {}
+          volumeMounts:
+            - mountPath: /dictionaries
+              name: dictionaries-volume
+          env:
+            - name: PROTOCOL
+              value: "2"
+            - name: WEB_PORT
+              value: "80"
+            - name: VIRTUAL_DIR
+              value: wscservice
+            - name: LICENSE_TICKET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: wproofreader-app-lic
+                  key: license
+      volumes:
+        - name: dictionaries-volume
+          persistentVolumeClaim:
+            claimName: wproofreader-app-dict
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: wproofreader.domain-name.com/app
+                    operator: Exists

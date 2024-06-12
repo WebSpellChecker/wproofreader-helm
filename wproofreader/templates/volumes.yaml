@@ -1,4 +1,5 @@
-{{- if .Values.dictionaries.localPath }}
+{{- if .Values.dictionaries.enabled }}
+{{- if and .Values.dictionaries.localPath (not .Values.dictionaries.existingClaim) }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -18,14 +19,13 @@ spec:
     required:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: {{ .Values.affinityLabel }}
+            - key: {{ .Values.nodeAffinityLabel }}
               operator: Exists
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "wproofreader.fullname" . }}-dict
+  name: {{ include "wproofreader.pvcName" . }}
   labels:
     {{- include "wproofreader.labels" . | nindent 4 }}
 spec:
@@ -35,4 +35,5 @@ spec:
   resources:
     requests:
       storage: {{ .Values.dictionaries.volumeSize }}
+{{- end }}
 {{- end }}

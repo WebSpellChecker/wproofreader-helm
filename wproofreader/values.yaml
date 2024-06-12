@@ -31,8 +31,12 @@ certMountPath: "/certificate"
 
 # `dictionaries` structure provide storage for custom user dictionaries inside the cluster
 dictionaries:
-  # absolute path of the directory on the Kubernetes node, where the files should be kept
-  # leave empty if no volume for custom dictionaries should be created
+  # enable or disable persistence of custom dictionary feature
+  enabled: false
+  # name of existing the PersistentVolumeClaim to use for storing dictionaries
+  existingClaim: ""
+  # absolute path of the directory on the Kubernetes node where the files should be kept.
+  # leave empty if no volume for custom dictionaries should be created.
   localPath: ""
   # location inside the container that the above directory should be mounted to
   # make sure it matches DICTIONARIES_DIR variable in the Dockerfile (https://github.com/WebSpellChecker/wproofreader-docker)
@@ -49,35 +53,53 @@ image:
   repository: webspellchecker/wproofreader
   # options: IfNotPresent, Never, Always
   pullPolicy: IfNotPresent
-  # overrides the image tag whose default is the chart appVersion
+  # overrides the image tag whose default is the chart appVersion.
   tag: ""
+
+# Readiness Options allows customizing the default readiness probe
+readinessProbeOptions: {}
+#  initialDelaySeconds: 10
+#  periodSeconds: 10
+#  timeoutSeconds: 5
+#  successThreshold: 1
+#  failureThreshold: 3
+
+# Liveness Options allows customizing the default liveness probe
+livenessProbeOptions: {}
+#  periodSeconds: 10
+#  timeoutSeconds: 3
+#  failureThreshold: 1
 
 # number of Pods (AppServer instances) to retain; is ignored if HorizontalPodAutoscaling is enabled (see below)
 replicaCount: 1
 
 # HorizontalPodAutoscaling parameters. For more info, see documentation: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale
 # if enabled, requires "resources" (see below)
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 5
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
+# Note: WProofreader Server can be scaled only based on CPU usage metric. The targetMemoryUtilizationPercentage is not supported.
+autoscaling: {}
+#  enabled: false
+#  minReplicas: 1
+#  maxReplicas: 5
+#  targetCPUUtilizationPercentage: 80
 
-# max resources usage allowed for pod
+# Max resources usage allowed for pod
 # have to be specified if HorizontalPodAutoscaling is enabled
 # if none are given, uses all available on host
 # (to add your values remove "{}" form the line below, uncomment and edit the ones further down)
+# Ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 resources: {}
-#  limits:
-#    cpu: 100m
-#    memory: 128Mi
 #  requests:
-#    cpu: 100m
-#    memory: 128Mi
+#    memory: "4Gi"
+#    cpu: "1"
+#  limits:
+#    memory: "8Gi"
+#    cpu: "4"
 
 # if you keep you custom images in a private container repository, you might have to
-# provide an imagePullSecret. See: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+# provide an imagePullSecret.
+# See:
+#  - https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+#  - https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
 
 # overrides default chart name ("wproofreader") used for naming resources
@@ -123,7 +145,22 @@ securityContext: {}
 # the label is used for setting the affinity parameter, which specifies a set of
 # labels that a candidate node for hosting the deployment should have
 # we recommend customizing it for your use
-affinityLabel: "proofreader.company-domain.com/app"
+# Example:
+## nodeAffinityLabel: "wproofreader.domain-name.com/app"
+nodeAffinityLabel: ""
+
+# Affinity for pod assignment (evaluated as template)
+# ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+affinity: {}
+#  podAntiAffinity:
+#    prefferedDuringSchedulingIgnoredDuringExecution:
+#      - labelSelector:
+#          matchExpressions:
+#            - key: app.kubernetes.io/name
+#              operator: In
+#              values:
+#                - wproofreader
+#        topologyKey: kubernetes.io/hostname
 
 # default deployment strategy for Kubernetes:
 # allow no more than 25% (no fewer than 1) of pods be
