@@ -164,6 +164,7 @@ The default value is `1`. For example, to scale the application to 3 replicas, s
 For dynamic scaling based on resource utilization, you can use Kubernetes Horizontal Pod Autoscaler (HPA). 
 To use the HPA, you need to turn on the metrics server in your Kubernetes cluster. The HPA will then automatically change the number of pods in a deployment based on how much CPU is being used.
 The HPA is not enabled by default in the Helm chart. To enable it, set the `autoscaling.enabled` parameter to `true` in the `values.yaml` file.
+
 **Important Note:** WProofreader Server can be scaled only based on CPU usage metric. The `targetMemoryUtilizationPercentage` is not supported.
 
 ## Common issues
