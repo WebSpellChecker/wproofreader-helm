@@ -121,6 +121,7 @@ There is also a way in the Chart to specify an already existing Persistent Volum
 
 > [!TIP]
 > Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
+>
 > However, please note that provisioning the Persistent Volume (PV) and PVC for storage backends like NFS is outside the scope of this Chart. You will need to provision the PV and PVC separately according to your storage backend's documentation before using the `dictionaries.existingClaim` parameter.
 
 ## Use in production
