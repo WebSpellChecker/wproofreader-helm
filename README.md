@@ -109,19 +109,19 @@ Once uploaded, the files will automatically appear on all pods and persist
 even if the pods are restarted. Follow these steps:
 1. Get the name of one of the pods. For the Helm release named `wproofreader-app` in the `wsc` namespace, use
    ```shell
-      POD=$(kubectl get pods -n wsc -l app.kubernetes.io/instance=wproofreader-app -o jsonpath="{.items[0].metadata.name}")
+   POD=$(kubectl get pods -n wsc -l app.kubernetes.io/instance=wproofreader-app -o jsonpath="{.items[0].metadata.name}")
    ```
 2. Upload the files to the pod
    ```shell
-      kubectl cp -n wsc <local path to files> $POD:/dictionaries
+   kubectl cp -n wsc <local path to files> $POD:/dictionaries
    ```
    Replace `/dictionaries` with your custom `dictionaries.mountPath` value if applicable.
    
 There is also a way in the Chart to specify an already existing Persistent Volume Claim (PVC) with dictionaries that can be configured to operate on multiple nodes (e.g., NFS). To do this, enable the custom dictionary feature by setting the `dictionaries.enabled` parameter to `true` and specifying the name of the existing PVC in the `dictionaries.existingClaim` parameter.
 
-**Recommended approach:** Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
-
-However, please note that provisioning the Persistent Volume (PV) and PVC for storage backends like NFS is outside the scope of this Chart. You will need to provision the PV and PVC separately according to your storage backend's documentation before using the `dictionaries.existingClaim` parameter.
+> [!TIP]
+> Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
+> However, please note that provisioning the Persistent Volume (PV) and PVC for storage backends like NFS is outside the scope of this Chart. You will need to provision the PV and PVC separately according to your storage backend's documentation before using the `dictionaries.existingClaim` parameter.
 
 ## Use in production
 
@@ -177,8 +177,8 @@ The HPA is not enabled by default in the Helm chart. To enable it, set the `auto
 
 Check the pod logs to see if the license ID has not been provided:
 ```shell
-   POD=$(kubectl get pods -n <namespace> -l app.kubernetes.io/instance=<release-name> -o jsonpath="{.items[0].metadata.name}")
-   kubectl logs -n <namespace> $POD
+POD=$(kubectl get pods -n <namespace> -l app.kubernetes.io/instance=<release-name> -o jsonpath="{.items[0].metadata.name}")
+kubectl logs -n <namespace> $POD
 ```
 
 If so, refer to [license section](#license-activation). 
