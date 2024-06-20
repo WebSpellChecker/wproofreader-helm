@@ -50,7 +50,8 @@ There are three ways the service can be activated:
 ```
 provided that `LICENSE_TICKET_ID` is set in your environment.
 
-IMPORTANT! If you are attempting to build a production environment, it's recommended to use the custom Docker image with WProofreader Server instead of the public one published on Docker Hub. With the custom image, you won't need to activate the license on the container start. Thus, you just skip this step. Otherwise, you may face the issue with reaching the maximum allowed number of license activation attempts (by default, 25). In this case, you need to [contact support](https://webspellchecker.com/contact-us/) to extend/reset the license activation limit. Nevertheless, using the public image is acceptable for evaluation, testing and development purposes.
+> [!IMPORTANT]
+> If you are attempting to build a production environment, it's recommended to use the custom Docker image with WProofreader Server instead of the public one published on Docker Hub. With the custom image, you won't need to activate the license on the container start. Thus, you just skip this step. Otherwise, you may face the issue with reaching the maximum allowed number of license activation attempts (by default, 25). In this case, you need to [contact support](https://webspellchecker.com/contact-us/) to extend/reset the license activation limit. Nevertheless, using the public image is acceptable for evaluation, testing and development purposes.
 
 ## HTTPS
 
@@ -65,10 +66,11 @@ files within the chart directory. Keep in mind that Helm can't reach outside the
 3. `certMountPath` to whatever path was used in the `Dockerfile`.
 For the DockerHub image, one should stick to the default value, which is `/certificate`.
 
-Note: `certFile` and `keyFile` filenames, as well as `certMountPath` have to match to values set in the 
-`Dockerfile` used for building the image. Otherwise, `nginx` config (`/etc/nginx/conf.d/wscservice.conf`) 
-has to be updated with new filenames and locations.
-The defaults for the DockerHub image are `cert.pem`, `key.pem`, and `/certificate`, respectively.
+> [!NOTE]
+> `certFile` and `keyFile` filenames, as well as `certMountPath` have to match to values set in the 
+> `Dockerfile` used for building the image. Otherwise, `nginx` config (`/etc/nginx/conf.d/wscservice.conf`) 
+> has to be updated with new filenames and locations.
+> The defaults for the DockerHub image are `cert.pem`, `key.pem`, and `/certificate`, respectively.
 
 ## Custom dictionaries
 
@@ -130,8 +132,6 @@ This can be configured in the `values.yaml` file under the `resources` section.
 
 Below are the recommended resource requests and limits for deploying WProofreader Server v5.34.x with enabled English dialects (en_US, en_GB, en_CA, and en_AU) for spelling & grammar check using the English AI language model for enhanced and more accurate proofreading. It also includes such features as a style guide, spelling autocorrect, named-entity recognition (NER), and text autocomplete suggestions (text prediction). These values represent the minimum requirements for running WProofreader Server in a production environment.
 
-**Note:** Depending on your specific needs and usage patterns, especially when deploying AI language models for enhanced proofreading in other languages, you may need to adjust these values to ensure optimal performance and resource utilization. Alternatively, you can choose the bare-minimum configuration without AI language models. In this case, only algorithmic engines will be used to provide basic spelling and grammar checks.
-
 ```yaml
 resources:
   requests:
@@ -141,6 +141,9 @@ resources:
     memory: "8Gi"
     cpu: "4"
 ```
+
+> [!NOTE]
+> Depending on your specific needs and usage patterns, especially when deploying AI language models for enhanced proofreading in other languages, you may need to adjust these values to ensure optimal performance and resource utilization. Alternatively, you can choose the bare-minimum configuration without AI language models. In this case, only algorithmic engines will be used to provide basic spelling and grammar checks.
 
 ### Readiness and liveness probes
 
@@ -166,7 +169,8 @@ For dynamic scaling based on resource utilization, you can use Kubernetes Horizo
 To use the HPA, you need to turn on the metrics server in your Kubernetes cluster. The HPA will then automatically change the number of pods in a deployment based on how much CPU is being used.
 The HPA is not enabled by default in the Helm chart. To enable it, set the `autoscaling.enabled` parameter to `true` in the `values.yaml` file.
 
-**Important Note:** WProofreader Server can be scaled only based on CPU usage metric. The `targetMemoryUtilizationPercentage` is not supported.
+> [!IMPORTANT]
+> WProofreader Server can be scaled only based on CPU usage metric. The `targetMemoryUtilizationPercentage` is not supported.
 
 ## Common issues
 ### Readiness probe failed
@@ -183,10 +187,10 @@ Existing release can be patched with
 helm upgrade -n <namespace> <release-name> wproofreader --set licenseTicketID=<license ID> 
 ```
 
-Keep in mind, that upcoming `helm upgrade`'s have to carry on the `licenseTicketID` flag, 
+Keep in mind, that upcoming `helm upgrade` have to carry on the `licenseTicketID` flag, 
 so that it's not overwritten with the (empty) value from `values.yaml`.
 
-### Something got broken following `helm upgrade`
+### Something got broken following helm upgrade
 
 Please make sure that all values arguments passed as `--set` CLI arguments 
 were duplicated with your latest `helm upgrade` call, or simply use `--reuse-values` flag. 
