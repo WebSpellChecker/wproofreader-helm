@@ -101,6 +101,10 @@ To install the Chart with custom dictionaries feature enabled and the local path
 ```shell
 helm install --create-namespace --namespace wsc wproofreader-app wproofreader --set nodeAffinityLabel=wproofreader.domain-name.com/app --set dictionaries.enabled=true --set dictionaries.localPath=/dictionaries
 ```
+For testing and development purposes, if neither `dictionaries.localPath` nor `dictionaries.existingClaim` is set when `dictionaries.enabled` is `true`, the Helm Chart will automatically create an `emptyDir` volume for dictionaries. This ensures that the deployment can proceed without requiring a predefined storage location.
+```shell
+helm install --create-namespace --namespace wsc wproofreader-app wproofreader --set dictionaries.enabled=true
+```
 The dictionary files can be uploaded after the chart installation, but the `dictionaries.localPath` 
 folder must exist on the node beforehand. 
 Dictionaries can be uploaded to the node VM using standard methods (`scp`, `rsync`, `FTP` etc) or 

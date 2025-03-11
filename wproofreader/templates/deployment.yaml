@@ -78,6 +78,9 @@ spec:
               value: {{ .Values.webPort | default (include "wproofreader.defaultWebPort" .) | quote }}
             - name: VIRTUAL_DIR
               value: {{ .Values.virtualDir }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
             - name: LICENSE_TICKET_ID
               valueFrom:
                 secretKeyRef:
@@ -90,10 +93,17 @@ spec:
           secret:
             secretName: {{ include "wproofreader.fullname" . }}-cert
         {{- end }}
-        {{- if or .Values.dictionaries.localPath .Values.dictionaries.existingClaim }}
+        {{- if .Values.dictionaries.enabled }}
         - name: dictionaries-volume
+          {{- if .Values.dictionaries.existingClaim }}
           persistentVolumeClaim:
-            claimName: {{ default (include "wproofreader.pvcName" .) .Values.dictionaries.existingClaim }}
+            claimName: {{ .Values.dictionaries.existingClaim }}
+          {{- else if .Values.dictionaries.localPath }}
+          hostPath:
+            path: {{ .Values.dictionaries.localPath }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
         {{- end }}
       {{- end }}
       {{- if and .Values.dictionaries.enabled .Values.dictionaries.localPath }}
