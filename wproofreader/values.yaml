@@ -13,6 +13,12 @@ webPort: ""
 # note: Helm does not allow its templates to read environment variables directly
 licenseTicketID: ""
 
+# extra environment variables to pass to the container
+extraEnv: []
+# extraEnv:
+#   - name: DOMAIN_NAME
+#     value: "wproofreader.domain-name.com"
+
 # directory of the service for web and API requests, e.g. http://localhost/wscservice/api?cmd=ver
 virtualDir: wscservice
 
