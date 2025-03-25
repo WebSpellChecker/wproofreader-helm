@@ -60,17 +60,13 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- if or (.Values.useHTTPS | and .Values.certFile) .Values.dictionaries.localPath .Values.dictionaries.existingClaim }}
           volumeMounts:
             {{- if .Values.useHTTPS | and .Values.certFile }}
             - mountPath: {{ .Values.certMountPath }}
               name: tls-secret-volume
             {{- end }}
-            {{- if or .Values.dictionaries.localPath .Values.dictionaries.existingClaim }}
-            - mountPath: {{ .Values.dictionaries.mountPath }}
+            - mountPath: {{ .Values.dictionaries.mountPath | default "/dictionaries" }}
               name: dictionaries-volume
-            {{- end }}
-          {{- end }}
           env:
             - name: PROTOCOL
               value: {{ if .Values.useHTTPS }}"1"{{ else }}"2"{{ end }}
@@ -86,7 +82,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "wproofreader.fullname" . }}-lic
                   key: license
-      {{- if or (.Values.useHTTPS | and .Values.certFile) .Values.dictionaries.localPath .Values.dictionaries.existingClaim }}
       volumes:
         {{- if .Values.useHTTPS | and .Values.certFile }}
         - name: tls-secret-volume
@@ -102,10 +97,14 @@ spec:
           hostPath:
             path: {{ .Values.dictionaries.localPath }}
           {{- else }}
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: {{ include "wproofreader.pvcName" . }}
           {{- end }}
+        {{- else if not .Values.dictionaries.enabled }}
+        - name: dictionaries-volume
+          emptyDir: {}
         {{- end }}
-      {{- end }}
+
       {{- if and .Values.dictionaries.enabled .Values.dictionaries.localPath }}
       affinity:
         nodeAffinity:
