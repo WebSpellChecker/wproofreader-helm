@@ -1,4 +1,3 @@
-
 #### Properties specific to WProofreader
 # set to true for the server to process HTTP requests over SSL only
 useHTTPS: false
@@ -48,9 +47,11 @@ dictionaries:
   # make sure it matches DICTIONARIES_DIR variable in the Dockerfile (https://github.com/WebSpellChecker/wproofreader-docker)
   mountPath: "/dictionaries"
   # maximum volume size – make sure it can accommodate all your data
-  volumeSize: 20Gi
+  volumeSize: "20Gi"
   # see Kubernetes reference on storage classes: https://kubernetes.io/docs/concepts/storage/storage-classes/
   storageClassName: "standard"
+  # access mode for the volume
+  accessMode: "ReadWriteMany"
 
 #### Deployment properties
 

@@ -1,5 +1,6 @@
 {{- if .Values.dictionaries.enabled }}
-{{- if and .Values.dictionaries.localPath (not .Values.dictionaries.existingClaim) }}
+{{- if not .Values.dictionaries.existingClaim }}
+{{- if .Values.dictionaries.localPath }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -7,12 +8,12 @@ metadata:
   labels:
     {{- include "wproofreader.labels" . | nindent 4 }}
 spec:
-  storageClassName: {{ .Values.dictionaries.storageClassName }}
+  storageClassName: {{ .Values.dictionaries.storageClassName | default "standard" }}
   capacity:
-    storage: {{ .Values.dictionaries.volumeSize }}
+    storage: {{ .Values.dictionaries.volumeSize | default "20Gi" }}
   volumeMode: Filesystem
   accessModes:
-    - ReadWriteMany
+    - {{ .Values.dictionaries.accessMode | default "ReadWriteMany" }}
   local:
     path: {{ .Values.dictionaries.localPath }}
   nodeAffinity:
@@ -21,6 +22,7 @@ spec:
         - matchExpressions:
             - key: {{ .Values.nodeAffinityLabel }}
               operator: Exists
+{{- end }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -29,11 +31,11 @@ metadata:
   labels:
     {{- include "wproofreader.labels" . | nindent 4 }}
 spec:
-  storageClassName: {{ .Values.dictionaries.storageClassName }}
+  storageClassName: {{ .Values.dictionaries.storageClassName | default "standard" }}
   accessModes:
-    - ReadWriteMany
+    - {{ .Values.dictionaries.accessMode | default "ReadWriteMany" }}
   resources:
     requests:
-      storage: {{ .Values.dictionaries.volumeSize }}
+      storage: {{ .Values.dictionaries.volumeSize | default "20Gi" }}
 {{- end }}
 {{- end }}

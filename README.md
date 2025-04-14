@@ -74,11 +74,36 @@ For the DockerHub image, one should stick to the default value, which is `/certi
 
 ## Custom dictionaries
 
-To enable WProofreader Server to use your custom dictionaries, follow these steps:
+The Helm chart provides flexible options for managing custom dictionaries in your WProofreader Server deployment. There are several configuration scenarios to accommodate different use cases:
+
+### Configuration options
+
+**1. Dynamic persistent volume (PV) provisioning**
+
+When `dictionaries.enabled` is set to `true` and neither `dictionaries.localPath` nor `dictionaries.existingClaim` storage configuration is provided, Kubernetes will dynamically provision a Persistent Volume based on `dictionaries.storageClass` that has to be defined externally.
+This is the simplest way to manage custom dictionaries in a Kubernetes environment:
+```yaml
+dictionaries:
+  enabled: true
+  storageClass: "efs-sc"
+```
+
+> [!IMPORTANT]
+> Ensure that the specified storageClass supports the required access mode (typically `ReadWriteMany`).
+> Not all volume plugins (CSI drivers) support all access modes — for example, block storage types like AWS EBS support only `ReadWriteOnce`, while shared file systems like Amazon EFS support `ReadWriteMany`.
+>
+> Read your storage provider’s CSI driver documentation to confirm compatibility before relying on dynamic provisioning.
+
+**2. hostPath volume (node-local storage)**
+
+Use this option if you prefer mounting dictionaries from the local filesystem of a specific node. 
+This is useful when you have a single-node cluster or need to share dictionaries across multiple pods running on the same node.
+
+To enable WProofreader Server to use your custom dictionaries with Kubernetes `hostPath` storage type, follow these steps:
 1. Upload the files to a directory on the node where the chart will be deployed.
    Ensure this node has `wproofreader.domain-name.com/app` label.
 2. Set `dictionaries.localPath` parameter to the absolute path of this directory.
-3. Optionally, edit `dictionaries.mountPath` value if non-default one was used in `Dockerfile`,
+3. Optionally, edit `dictionaries.mountPath` value if a non-default one was used in `Dockerfile`,
 as well as other `dictionaries` parameters if needed.
 4. Install the chart as usual.
 
@@ -87,9 +112,9 @@ This allows the user to specify which node will host WProofreader Server
 on a cluster, even a single-node one.
 
 To assign this role to a node, you need to attach a label to it. It can be any label you choose,
-e.g. `wproofreader.domain-name.com/app`:
+e.g., `wproofreader.domain-name.com/app`:
 ```shell
-kubectl label node <name-of-the-node> wproofreader.domain-name.com/app=
+kubectl label node <node-name> wproofreader.domain-name.com/app=
 ```
 Note that `=` is required but the value after it is not important (empty in this example).
 
@@ -97,17 +122,25 @@ Keep in mind that your custom label has to be either updated in `values.yaml`
 (`nodeAffinityLabel` key, recommended), or passed to `helm` calls using 
 `--set nodeAffinityLabel=wproofreader.domain-name.com/app`.
 
-To install the Chart with custom dictionaries feature enabled and the local path set to the directory on the node where dictionaries are stored:
-```shell
-helm install --create-namespace --namespace wsc wproofreader-app wproofreader --set nodeAffinityLabel=wproofreader.domain-name.com/app --set dictionaries.enabled=true --set dictionaries.localPath=/dictionaries
+Example `values.yaml` configuration:
+```yaml
+nodeAffinityLabel: "wproofreader.domain-name.com/app"
+
+dictionaries:
+  enabled: true
+  localPath: "/dictionaries"
 ```
-For testing and development purposes, if neither `dictionaries.localPath` nor `dictionaries.existingClaim` is set when `dictionaries.enabled` is `true`, the Helm Chart will automatically create an `emptyDir` volume for dictionaries. This ensures that the deployment can proceed without requiring a predefined storage location.
+
+To install the Chart with the custom dictionaries feature enabled and the local path set to the directory on the node where dictionaries are stored:
 ```shell
-helm install --create-namespace --namespace wsc wproofreader-app wproofreader --set dictionaries.enabled=true
+helm install --create-namespace --namespace wsc wproofreader-app wproofreader \
+  --set nodeAffinityLabel=wproofreader.domain-name.com/app \
+  --set dictionaries.enabled=true \
+  --set dictionaries.localPath=/dictionaries
 ```
 The dictionary files can be uploaded after the chart installation, but the `dictionaries.localPath` 
 folder must exist on the node beforehand. 
-Dictionaries can be uploaded to the node VM using standard methods (`scp`, `rsync`, `FTP` etc) or 
+Dictionaries can be uploaded to the node VM using standard methods (`scp`, `rsync`, `FTP`, etc.) or 
 the `kubectl cp` command. With `kubectl cp`, you need to use one of the deployment's pods. 
 Once uploaded, the files will automatically appear on all pods and persist
 even if the pods are restarted. Follow these steps:
@@ -121,7 +154,20 @@ even if the pods are restarted. Follow these steps:
    ```
    Replace `/dictionaries` with your custom `dictionaries.mountPath` value if applicable.
    
+**3. Existing Persistent Volume Claim (PVC)**
+
 There is also a way in the Chart to specify an already existing Persistent Volume Claim (PVC) with dictionaries that can be configured to operate on multiple nodes (e.g., NFS). To do this, enable the custom dictionary feature by setting the `dictionaries.enabled` parameter to `true` and specifying the name of the existing PVC in the `dictionaries.existingClaim` parameter.
+```yaml
+dictionaries:
+  enabled: true
+  existingClaim: "wproofreader-dictionaries-pvc"
+```
+
+**4. Default behavior**
+
+If `dictionaries.enabled` is `false`, the chart will use an ephemeral `emptyDir` volume for `/dictionaries`.
+This means any uploaded dictionaries will be lost after pod restarts. 
+This setup is only suitable for development and testing.
 
 > [!TIP]
 > Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
