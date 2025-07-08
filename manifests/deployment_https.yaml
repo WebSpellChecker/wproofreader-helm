@@ -58,13 +58,13 @@ spec:
             - mountPath: /dictionaries
               name: dictionaries-volume
           env:
-            - name: PROTOCOL
+            - name: WPR_PROTOCOL
               value: "1"
-            - name: WEB_PORT
+            - name: WPR_WEB_PORT
               value: "443"
-            - name: VIRTUAL_DIR
+            - name: WPR_VIRTUAL_DIR
               value: wscservice
-            - name: LICENSE_TICKET_ID
+            - name: WPR_LICENSE_TICKET_ID
               valueFrom:
                 secretKeyRef:
                   name: wproofreader-app-lic
