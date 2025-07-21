@@ -42,13 +42,13 @@ in `values.yaml`.
 ## License activation
 
 There are three ways the service can be activated:
-1. During `docker build` by setting the `LICENSE_TICKET_ID` argument in Dockerfile or CLI (`--build-arg LICENSE_TICKET_ID=${MY_LOCAL_VARIABLE}`).
+1. During `docker build` by setting the `WPR_LICENSE_TICKET_ID` argument in Dockerfile or CLI (`--build-arg WPR_LICENSE_TICKET_ID=${MY_LOCAL_VARIABLE}`).
 2. Through the `values.yaml` config file (`licenseTicketID` parameter).
 3. During chart deployment/upgrade CLI call using the flag:
 ```shell
---set licenseTicketID=${LICENSE_TICKET_ID}
+--set licenseTicketID=${WPR_LICENSE_TICKET_ID}
 ```
-provided that `LICENSE_TICKET_ID` is set in your environment.
+provided that `WPR_LICENSE_TICKET_ID` is set in your environment.
 
 > [!IMPORTANT]
 > If you are attempting to build a production environment, it's recommended to use the custom Docker image with WProofreader Server instead of the public one published on Docker Hub. With the custom image, you won't need to activate the license on the container start. Thus, you just skip this step. Otherwise, you may face the issue with reaching the maximum allowed number of license activation attempts (by default, 25). In this case, you need to [contact support](https://webspellchecker.com/contact-us/) to extend/reset the license activation limit. Nevertheless, using the public image is acceptable for evaluation, testing and development purposes.

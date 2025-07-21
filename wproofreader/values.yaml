@@ -15,7 +15,7 @@ licenseTicketID: ""
 # extra environment variables to pass to the container
 extraEnv: []
 # extraEnv:
-#   - name: DOMAIN_NAME
+#   - name: WPR_DOMAIN_NAME
 #     value: "wproofreader.domain-name.com"
 
 # directory of the service for web and API requests, e.g. http://localhost/wscservice/api?cmd=ver
@@ -25,13 +25,13 @@ virtualDir: wscservice
 # note: Helm cannot reach outside its chart directory to fetch your files
 # leave empty if they are already present in the container
 # use same file names as those specified in Dockerfile
-# (i.e. CERT_CERT_NAME and CERT_KEY_NAME variables in WProofreader official Dockerfile: https://github.com/WebSpellChecker/wproofreader-docker)
+# (i.e. WPR_CERT_FILE_NAME and WPR_CERT_KEY_NAME variables in WProofreader official Dockerfile: https://github.com/WebSpellChecker/wproofreader-docker)
 # otherwise, one would have to manually edit the nginx config file (/etc/nginx/conf.d/wscservice.conf) on each Pod (in each container instance)
 certFile: ""
 keyFile: ""
 # directory where the certificate and its key will be kept inside the container
 # same remark as the one above on matching the Dockerfile variables applies
-# (i.e. CERT_DIR variable in WProofreader official Dockerfile: https://github.com/WebSpellChecker/wproofreader-docker)
+# (i.e. WPR_CERT_DIR variable in WProofreader official Dockerfile: https://github.com/WebSpellChecker/wproofreader-docker)
 certMountPath: "/certificate"
 
 # `dictionaries` structure provide storage for custom user dictionaries inside the cluster
@@ -44,7 +44,7 @@ dictionaries:
   # leave empty if no volume for custom dictionaries should be created.
   localPath: ""
   # location inside the container that the above directory should be mounted to
-  # make sure it matches DICTIONARIES_DIR variable in the Dockerfile (https://github.com/WebSpellChecker/wproofreader-docker)
+  # make sure it matches WPR_DICTIONARIES_DIR variable in the Dockerfile (https://github.com/WebSpellChecker/wproofreader-docker)
   mountPath: "/dictionaries"
   # maximum volume size – make sure it can accommodate all your data
   volumeSize: "20Gi"

@@ -3,10 +3,10 @@ kind: PersistentVolume
 metadata:
   name: wproofreader-app-dict
   labels:
-    helm.sh/chart: wproofreader-1.2.0
+    helm.sh/chart: wproofreader-1.3.0
     app.kubernetes.io/name: wproofreader
     app.kubernetes.io/instance: wproofreader-app
-    app.kubernetes.io/version: "5.39.1.0"
+    app.kubernetes.io/version: "6.2.0.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   storageClassName: standard
@@ -29,10 +29,10 @@ kind: PersistentVolumeClaim
 metadata:
   name: wproofreader-app-dict
   labels:
-    helm.sh/chart: wproofreader-1.2.0
+    helm.sh/chart: wproofreader-1.3.0
     app.kubernetes.io/name: wproofreader
     app.kubernetes.io/instance: wproofreader-app
-    app.kubernetes.io/version: "5.39.1.0"
+    app.kubernetes.io/version: "6.2.0.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   storageClassName: standard

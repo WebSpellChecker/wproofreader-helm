@@ -3,10 +3,10 @@ kind: Deployment
 metadata:
   name: wproofreader-app
   labels:
-    helm.sh/chart: wproofreader-1.2.0
+    helm.sh/chart: wproofreader-1.3.0
     app.kubernetes.io/name: wproofreader
     app.kubernetes.io/instance: wproofreader-app
-    app.kubernetes.io/version: "5.39.1.0"
+    app.kubernetes.io/version: "6.2.0.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
@@ -34,7 +34,7 @@ spec:
         - name: wproofreader
           securityContext:
             {}
-          image: "webspellchecker/wproofreader:5.39.1.0"
+          image: "webspellchecker/wproofreader:6.2.0.0"
           imagePullPolicy: IfNotPresent
           ports:
             - name: container-port
@@ -58,13 +58,13 @@ spec:
             - mountPath: /dictionaries
               name: dictionaries-volume
           env:
-            - name: PROTOCOL
+            - name: WPR_PROTOCOL
               value: "1"
-            - name: WEB_PORT
+            - name: WPR_WEB_PORT
               value: "443"
-            - name: VIRTUAL_DIR
+            - name: WPR_VIRTUAL_DIR
               value: wscservice
-            - name: LICENSE_TICKET_ID
+            - name: WPR_LICENSE_TICKET_ID
               valueFrom:
                 secretKeyRef:
                   name: wproofreader-app-lic

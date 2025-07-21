@@ -68,16 +68,16 @@ spec:
             - mountPath: {{ .Values.dictionaries.mountPath | default "/dictionaries" }}
               name: dictionaries-volume
           env:
-            - name: PROTOCOL
+            - name: WPR_PROTOCOL
               value: {{ if .Values.useHTTPS }}"1"{{ else }}"2"{{ end }}
-            - name: WEB_PORT
+            - name: WPR_WEB_PORT
               value: {{ .Values.webPort | default (include "wproofreader.defaultWebPort" .) | quote }}
-            - name: VIRTUAL_DIR
+            - name: WPR_VIRTUAL_DIR
               value: {{ .Values.virtualDir }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-            - name: LICENSE_TICKET_ID
+            - name: WPR_LICENSE_TICKET_ID
               valueFrom:
                 secretKeyRef:
                   name: {{ include "wproofreader.fullname" . }}-lic
