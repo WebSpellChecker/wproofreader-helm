@@ -1,6 +1,6 @@
 WProofreader Server has been deployed successfully!
-{{- $baseUrl := printf "http%s://%s.%s.svc:%s/%s/" (.Values.useHTTPS | ternary "s" "") (include "wproofreader.fullname" .)
-    .Release.Namespace (include "wproofreader.servicePort" . | toString) .Values.virtualDir
+{{- $baseUrl := printf "http%s://%s.%s.svc:%s%s/" (.Values.useHTTPS | ternary "s" "") (include "wproofreader.fullname" .)
+    .Release.Namespace (include "wproofreader.servicePort" . | toString) (include "wproofreader.virtualDirBasePath" .)
 }}
 Quick start:
     {{ print $baseUrl }}

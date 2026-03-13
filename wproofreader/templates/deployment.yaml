@@ -44,7 +44,7 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /{{ .Values.virtualDir }}
+              path: {{ include "wproofreader.virtualDirBasePath" . }}/
               port: container-port
               scheme: {{ if .Values.useHTTPS }}HTTPS{{ else }}HTTP{{ end }}
             {{- with .Values.livenessProbeOptions }}
@@ -52,7 +52,7 @@ spec:
             {{- end }}
           readinessProbe:
             httpGet:
-              path: "/{{ .Values.virtualDir }}/api?cmd=status"
+              path: "{{ include "wproofreader.virtualDirBasePath" . }}/api?cmd=status"
               port: container-port
               scheme: {{ if .Values.useHTTPS }}HTTPS{{ else }}HTTP{{ end }}
             {{- with .Values.readinessProbeOptions }}
