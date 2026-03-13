@@ -15,8 +15,8 @@ licenseTicketID: ""
 # extra environment variables to pass to the container
 extraEnv: []
 # extraEnv:
-#   - name: WPR_DOMAIN_NAME
-#     value: "wproofreader.domain-name.com"
+#   - name: WPR_JVM_MAX_MEMORY_SIZE_MB
+#     value: "2048"
 
 # directory of the service for web and API requests, e.g. http://localhost/wscservice/api?cmd=ver
 virtualDir: wscservice
