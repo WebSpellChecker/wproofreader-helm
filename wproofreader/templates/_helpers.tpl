@@ -91,6 +91,15 @@ Insert key/cert pair from file.
 {{- end }}
 
 {{/*
+Returns virtualDir as a path prefix: "/wscservice" for "wscservice", or "" for "/" or "".
+Append your path directly: {{ include "wproofreader.virtualDirBasePath" . }}/api?cmd=status
+*/}}
+{{- define "wproofreader.virtualDirBasePath" -}}
+{{- $vd := .Values.virtualDir | trimAll "/" -}}
+{{- if $vd -}}{{- printf "/%s" $vd -}}{{- end -}}
+{{- end }}
+
+{{/*
 Returns default web port as an integer.
 */}}
 {{- define "wproofreader.servicePort" -}}
