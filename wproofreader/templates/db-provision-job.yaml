@@ -1,0 +1,116 @@
+{{- if .Values.databaseProvisioning.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "wproofreader.fullname" . }}-db-provision
+  labels:
+    {{- include "wproofreader.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db-provision
+  annotations:
+    # Runs after the db-secret (weight -10) and before WProofreader pods start,
+    # so the schema and users exist before the AppServer connects.
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.databaseProvisioning.backoffLimit }}
+  {{- if not (kindIs "invalid" .Values.databaseProvisioning.ttlSecondsAfterFinished) }}
+  ttlSecondsAfterFinished: {{ .Values.databaseProvisioning.ttlSecondsAfterFinished }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "wproofreader.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: db-provision
+    spec:
+      restartPolicy: Never
+      # Default account: the chart ServiceAccount does not exist yet when hooks run.
+      automountServiceAccountToken: false
+      {{- with .Values.databaseProvisioning.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: db-manager
+          # tag defaults to the chart appVersion (the WProofreader version) so the
+          # db-manager image always carries the matching per-version schema migrations.
+          image: {{ include "wproofreader.dbManagerImage" . | quote }}
+          imagePullPolicy: {{ .Values.databaseProvisioning.image.pullPolicy }}
+          {{- with .Values.databaseProvisioning.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # 'args' overrides the image CMD; the entrypoint (/usr/local/bin/entrypoint.sh)
+          # still runs and receives "migrate" to execute the full provisioning lifecycle.
+          args: ["migrate"]
+          env:
+            # --- target database (connection comes from the `database` block) ---
+            - name: DB_HOST
+              value: {{ required "database.host is required when databaseProvisioning.enabled" .Values.database.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.database.name | quote }}
+            # --- privileged login db-manager uses to bootstrap + create users ---
+            - name: DB_USER
+              value: {{ .Values.databaseProvisioning.rootUser | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wproofreader.dbSecretName" . | quote }}
+                  key: root-password
+            # --- migration behaviour ---
+            - name: MIGRATION_MODE
+              value: {{ .Values.databaseProvisioning.migrationMode | quote }}
+            - name: DB_CONTEXTS
+              value: {{ .Values.databaseProvisioning.contexts | quote }}
+            - name: PROVISION_PREDEFINED_USERS
+              value: {{ .Values.databaseProvisioning.provisionPredefinedUsers | quote }}
+            # --- appserver user (WProofreader login) — name from `database`, password shared ---
+            - name: APPSERVER_USERNAME
+              value: {{ .Values.database.user | quote }}
+            - name: APPSERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wproofreader.dbSecretName" . | quote }}
+                  key: appserver-password
+                  optional: {{ not .Values.databaseProvisioning.provisionPredefinedUsers }}
+            # --- app_manager user (App-Manager login) ---
+            - name: APP_MANAGER_USERNAME
+              value: {{ .Values.databaseProvisioning.appManagerUsername | quote }}
+            - name: APP_MANAGER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wproofreader.dbSecretName" . | quote }}
+                  key: app-manager-password
+                  # only optional when db-manager will not create the predefined users
+                  optional: {{ not .Values.databaseProvisioning.provisionPredefinedUsers }}
+            # --- safety + resilience ---
+            - name: CREATE_BACKUP
+              value: {{ .Values.databaseProvisioning.createBackup | quote }}
+            - name: AUTO_ROLLBACK_ON_FAILURE
+              value: {{ .Values.databaseProvisioning.autoRollbackOnFailure | quote }}
+            - name: DB_MAX_RETRIES
+              value: {{ .Values.databaseProvisioning.maxRetries | quote }}
+            - name: DB_RETRY_INTERVAL
+              value: {{ .Values.databaseProvisioning.retryInterval | quote }}
+            - name: CHANGELOG_LOCK_STALE_MINUTES
+              value: {{ .Values.databaseProvisioning.changelogLockStaleMinutes | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.databaseProvisioning.logLevel | quote }}
+            {{- with .Values.databaseProvisioning.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.databaseProvisioning.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
