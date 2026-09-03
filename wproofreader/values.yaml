@@ -180,3 +180,113 @@ strategy:
 
 # See "Taints and Tolerations": https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 tolerations: []
+
+#### Database connection (optional)
+# Connection config for WProofreader's database service provider (WPR_DATABASE_* env).
+# Does NOT create the database — point `host` at an existing MySQL.
+database:
+  # master switch — does WProofreader use a database service provider?
+  enabled: false
+
+  # MySQL host holding the WProofreader service schema
+  # e.g. wpr-mysql-primary.<namespace>.svc.cluster.local
+  host: ""
+  # MySQL port
+  port: 3306
+  # service database/schema name
+  name: cloud_service
+  # user WProofreader authenticates as
+  user: appserver
+
+  # password for `user` above (WPR_DATABASE_PASSWORD); ignored if existingSecret is set
+  appServerPassword: ""
+
+  # use a pre-existing Secret instead of inline passwords; the chart then renders
+  # no Secret of its own. Required keys:
+  #   - appserver-password    when database.enabled, or provisionPredefinedUsers is true
+  #   - root-password         when databaseProvisioning.enabled
+  #   - app-manager-password  when provisionPredefinedUsers is true
+  existingSecret: ""
+
+  # WProofreader DB-backed features (only applied when enabled)
+  enableRequestStatistic: true
+  enableUserActionStatistic: true
+  enableRequestValidation: true
+
+#### Database provisioning (optional)
+# Provision the database above with db-manager (schema, migrations, users) via a
+# pre-install/pre-upgrade hook Job. Independent of `database.enabled`; often set by CI/CD.
+databaseProvisioning:
+  enabled: false
+
+  image:
+    # db-manager image repository (no tag)
+    repository: webspellchecker/db-manager
+    # image tag; empty defaults to the chart appVersion. db-manager is released per
+    # WProofreader version, so a db-manager image with that exact tag must exist — if you
+    # override image.tag for WProofreader, set the matching db-manager version here too.
+    tag: ""
+    # options: IfNotPresent, Never, Always
+    pullPolicy: IfNotPresent
+
+  # privileged user db-manager connects as to bootstrap the database
+  rootUser: root
+  # privileged password; ignored if database.existingSecret is set
+  rootPassword: ""
+  # App-Manager database user db-manager creates
+  appManagerUsername: app_manager
+  # App-Manager login password; required when provisionPredefinedUsers is true
+  # (ignored if database.existingSecret is set — put it under app-manager-password there)
+  appManagerPassword: ""
+
+  # migration mode: bootstrap (create DB if missing) | adopt | schema-only
+  migrationMode: bootstrap
+  # migration contexts
+  contexts: "external,seed"
+  # create the appserver + app_manager users (with grants) during provisioning
+  provisionPredefinedUsers: true
+  # take a backup before migrating. The Job mounts no volume, so the dump lives only
+  # for the lifetime of the pod and is useful only for autoRollbackOnFailure below.
+  createBackup: false
+  # restore from backup if the migration fails
+  autoRollbackOnFailure: false
+
+  # connection retry — db-manager waits for MySQL to be reachable
+  maxRetries: 60
+  retryInterval: 2
+  # minutes before a stale changelog lock is released (K8s crash resilience)
+  changelogLockStaleMinutes: 10
+  # log level: ERROR, WARN, INFO, DEBUG, TRACE
+  logLevel: INFO
+  # Job backoffLimit (retries before the install fails)
+  backoffLimit: 3
+  # delete the finished Job after this many seconds
+  ttlSecondsAfterFinished: 3600
+
+  # Pod-level security context for the provisioning Job.
+  # runAsUser must be numeric: the image sets `USER liquibase`, and kubelet cannot
+  # verify a named user against runAsNonRoot. 1001 is the liquibase uid.
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    seccompProfile:
+      type: RuntimeDefault
+
+  # Container-level security context for the provisioning Job
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  # extra environment variables to pass to the db-manager container
+  extraEnv: []
+
+  # Resource requests/limits for the provisioning Job
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi

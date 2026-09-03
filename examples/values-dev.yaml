@@ -1,0 +1,23 @@
+# Local development / minikube: WProofreader with db-manager provisioning.
+# Only the values that differ from the chart defaults are listed here.
+#
+#   kubectl -n am create secret generic wproofreader-db-credentials \
+#     --from-literal=root-password=... \
+#     --from-literal=appserver-password=... \
+#     --from-literal=app-manager-password=...
+#
+#   helm install wproofreader-app ./wproofreader -n am \
+#     -f examples/values-dev.yaml --set licenseTicketID=$WPR_LICENSE_TICKET_ID
+
+image:
+  # -base variant of the chart appVersion; "base" alone is a floating tag
+  tag: 6.16.0.0-base
+
+database:
+  enabled: true
+  host: wpr-mysql-primary.am.svc.cluster.local
+  existingSecret: wproofreader-db-credentials
+
+databaseProvisioning:
+  enabled: true
+  contexts: "external,seed"

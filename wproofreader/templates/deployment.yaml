@@ -19,6 +19,9 @@ spec:
     metadata:
       annotations:
         checksum/secrets: {{ include (print .Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- if and .Values.database.enabled (not .Values.database.existingSecret) }}
+        checksum/db-secret: {{ .Values.database.appServerPassword | sha256sum }}
+        {{- end }}
       {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -74,6 +77,35 @@ spec:
               value: {{ .Values.webPort | default (include "wproofreader.defaultWebPort" .) | quote }}
             - name: WPR_VIRTUAL_DIR
               value: {{ .Values.virtualDir }}
+            {{- if .Values.database.enabled }}
+            - name: WPR_ENABLE_DATABASE_PROVIDER
+              value: "true"
+            - name: WPR_DATABASE_HOST
+              value: {{ required "database.host is required when database.enabled" .Values.database.host | quote }}
+            - name: WPR_DATABASE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: WPR_DATABASE_SCHEMA
+              value: {{ .Values.database.name | quote }}
+            - name: WPR_DATABASE_USER
+              value: {{ .Values.database.user | quote }}
+            - name: WPR_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wproofreader.dbSecretName" . | quote }}
+                  key: appserver-password
+            {{- if .Values.database.enableRequestStatistic }}
+            - name: WPR_ENABLE_REQUEST_STATISTIC
+              value: "true"
+            {{- end }}
+            {{- if .Values.database.enableUserActionStatistic }}
+            - name: WPR_ENABLE_USER_ACTION_STATISTIC
+              value: "true"
+            {{- end }}
+            {{- if .Values.database.enableRequestValidation }}
+            - name: WPR_ENABLE_REQUEST_VALIDATION
+              value: "true"
+            {{- end }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
