@@ -46,7 +46,7 @@ in `values.yaml`.
 
 ## License activation
 
-There are three ways the service can be activated:
+There are four ways the service can be activated:
 
 1. During `docker build` by setting the `WPR_LICENSE_TICKET_ID` argument in Dockerfile or CLI (`--build-arg WPR_LICENSE_TICKET_ID=${MY_LOCAL_VARIABLE}`).
 2. Through the `values.yaml` config file (`licenseTicketID` parameter).
@@ -57,6 +57,17 @@ There are three ways the service can be activated:
 ```
 
 provided that `WPR_LICENSE_TICKET_ID` is set in your environment.
+
+4. Through a pre-existing Secret (`licenseExistingSecret` parameter). The chart does not create the license Secret. It reads the license ticket from the `license` key of the specified Secret, so the ticket is not stored in the chart values or the Helm release.
+
+```shell
+kubectl -n wsc create secret generic wpr-license --from-literal=license=${WPR_LICENSE_TICKET_ID}
+helm install wproofreader-app ./wproofreader --namespace wsc --set licenseExistingSecret=wpr-license
+```
+
+If you change the ticket inside that Secret, restart the Deployment yourself
+(`kubectl -n wsc rollout restart deployment/wproofreader-app`). Environment variables are read
+once at container start, and the chart only restarts pods automatically for the Secret it manages.
 
 > [!IMPORTANT]
 > If you are attempting to build a production environment, it's recommended to use the custom Docker image with WProofreader Server instead of the public one published on Docker Hub. With the custom image, you won't need to activate the license on the container start. Thus, you just skip this step. Otherwise, you may face the issue with reaching the maximum allowed number of license activation attempts (by default, 25). In this case, you need to [contact support](https://webspellchecker.com/contact-us/) to extend/reset the license activation limit. Nevertheless, using the public image is acceptable for evaluation, testing and development purposes.
@@ -391,6 +402,8 @@ helm upgrade -n <namespace> <release-name> wproofreader --set licenseTicketID=<l
 
 Keep in mind, that upcoming `helm upgrade` have to carry on the `licenseTicketID` flag,
 so that it's not overwritten with the (empty) value from `values.yaml`.
+To stop repeating the flag, put the ticket in a Secret of your own and set
+`licenseExistingSecret` instead, see [License activation](#license-activation).
 
 ### Something got broken following helm upgrade
 

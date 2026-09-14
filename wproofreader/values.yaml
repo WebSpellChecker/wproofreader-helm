@@ -12,6 +12,11 @@ webPort: ""
 # note: Helm does not allow its templates to read environment variables directly
 licenseTicketID: ""
 
+# name of a pre-existing Secret holding the license ticket ID under the key `license`.
+# When set, the chart renders no license Secret of its own and licenseTicketID is ignored.
+# Restart the Deployment yourself after changing the ticket in that Secret.
+licenseExistingSecret: ""
+
 # extra environment variables to pass to the container
 extraEnv: []
 # extraEnv:
