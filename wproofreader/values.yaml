@@ -19,6 +19,21 @@ licenseExistingSecret: ""
 
 # extra environment variables to pass to the container
 extraEnv: []
+
+# extra volumes / mounts for the AppServer pod, e.g. a Secrets Store CSI volume that also
+# syncs the license into the Secret named by licenseExistingSecret
+extraVolumes: []
+# extraVolumes:
+#   - name: secrets-store
+#     csi:
+#       driver: secrets-store.csi.k8s.io
+#       readOnly: true
+#       volumeAttributes: { secretProviderClass: vault-wproofreader-license }
+extraVolumeMounts: []
+# extraVolumeMounts:
+#   - name: secrets-store
+#     mountPath: /mnt/secrets-store
+#     readOnly: true
 # extraEnv:
 #   - name: WPR_JVM_MAX_MEMORY_SIZE_MB
 #     value: "2048"

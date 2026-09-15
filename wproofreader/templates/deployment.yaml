@@ -64,6 +64,9 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
             {{- if .Values.useHTTPS | and .Values.certFile }}
             - mountPath: {{ .Values.certMountPath }}
               name: tls-secret-volume
@@ -115,6 +118,9 @@ spec:
                   name: {{ include "wproofreader.licenseSecretName" . }}
                   key: license
       volumes:
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- if .Values.useHTTPS | and .Values.certFile }}
         - name: tls-secret-volume
           secret:
