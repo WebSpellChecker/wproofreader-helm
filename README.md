@@ -210,7 +210,7 @@ separate options for database support:
   `databaseProvisioning.enabled` is `true`, the chart runs a Kubernetes Job
   before each Helm install or upgrade. By default, the Job creates the database
   if it does not exist, applies all required migrations, and creates the
-  `appserver` and `app_manager` users with the required permissions.
+  `appserver` and `app_service` users with the required permissions.
 
 You can enable either option or both. For example, you can connect to a database
 that was prepared outside this chart, or you can run the provisioning Job without
@@ -234,7 +234,7 @@ helm install wproofreader-app ./wproofreader --namespace wsc --create-namespace 
   --set database.appServerPassword=$APPSERVER_PASSWORD \
   --set databaseProvisioning.enabled=true \
   --set databaseProvisioning.rootPassword=$MYSQL_ROOT_PASSWORD \
-  --set databaseProvisioning.appManagerPassword=$APP_MANAGER_PASSWORD
+  --set databaseProvisioning.adminPanelPassword=$ADMIN_PANEL_PASSWORD
 ```
 
 ### Connect to an existing database without provisioning
@@ -256,13 +256,17 @@ must contain these keys:
 
 - `root-password` when provisioning is enabled;
 - `appserver-password` when database support is enabled, or when provisioning creates the predefined users;
-- `app-manager-password` when provisioning and predefined user creation are enabled.
+- `admin-panel-password` when provisioning and predefined user creation are enabled.
 
 Set `database.existingSecret` to the Secret name. The chart will not create a
 separate database Secret.
 
-If you change a password inside an existing Secret, restart the Deployment yourself.
-The chart only restarts pods automatically for the Secret it manages.
+When you change `appserver-password` or `admin-panel-password`, run `helm upgrade` so the
+provisioning Job applies the new password to the MySQL account: db-manager 6.18.0.0 or
+newer sets it with `ALTER USER` when the stored password no longer works, and leaves an
+account whose password already matches alone. Older db-manager images never touch an
+existing account, so change the password in MySQL yourself. Then restart the Deployment
+yourself: the chart only restarts pods automatically for the Secret it manages.
 
 > [!TIP]
 > For production, use an existing Secret instead of passing passwords in the
@@ -272,7 +276,7 @@ The chart only restarts pods automatically for the Secret it manages.
 kubectl -n wsc create secret generic wpr-db \
   --from-literal=appserver-password=... \
   --from-literal=root-password=... \
-  --from-literal=app-manager-password=...
+  --from-literal=admin-panel-password=...
 
 helm install wproofreader-app ./wproofreader --namespace wsc \
   --set licenseTicketID=$WPR_LICENSE_TICKET_ID \
@@ -281,6 +285,38 @@ helm install wproofreader-app ./wproofreader --namespace wsc \
   --set database.existingSecret=wpr-db \
   --set databaseProvisioning.enabled=true
 ```
+
+### Encrypt the provisioning connection
+
+By default db-manager talks to MySQL in clear text, which a managed database with
+`require_secure_transport=ON` refuses. From db-manager 6.18.0.0 the connection can be
+encrypted; older images ignore the setting.
+
+```yaml
+databaseProvisioning:
+  tls:
+    mode: required            # encrypt, do not check the server certificate
+```
+
+`required` works with any server, including one with an auto-generated self-signed
+certificate. To also verify the server certificate, put the CA certificate in a Secret
+and select a verify mode:
+
+```shell
+kubectl -n wsc create secret generic mysql-ca --from-file=ca.crt=/path/to/ca.pem
+```
+
+```yaml
+databaseProvisioning:
+  tls:
+    mode: verify-identity     # or verify-ca
+    caSecret: mysql-ca
+    caSecretKey: ca.crt
+```
+
+The chart mounts the Secret into the Job at `/etc/db-manager/tls` and points `DB_TLS_CA`
+at it. This setting covers the provisioning Job only; WProofreader Server's own database
+connection is configured through its `WPR_DATABASE_*` variables.
 
 ### Key parameters
 
@@ -296,13 +332,16 @@ helm install wproofreader-app ./wproofreader --namespace wsc \
 | `databaseProvisioning.enabled` | `false` | Prepare the database with db-manager |
 | `databaseProvisioning.rootUser` | `root` | Administrative MySQL user for provisioning |
 | `databaseProvisioning.rootPassword` | `""` | Password for the administrative MySQL user; ignored when `database.existingSecret` is set |
-| `databaseProvisioning.appManagerUsername` | `app_manager` | App-Manager MySQL user created during provisioning |
-| `databaseProvisioning.appManagerPassword` | `""` | Password for the App-Manager MySQL user; ignored when `database.existingSecret` is set |
+| `databaseProvisioning.adminPanelUsername` | `app_service` | Admin-panel MySQL user created during provisioning |
+| `databaseProvisioning.adminPanelPassword` | `""` | Password for the Admin-panel MySQL user; ignored when `database.existingSecret` is set |
 | `databaseProvisioning.image.repository` | `webspellchecker/db-manager` | db-manager image repository |
 | `databaseProvisioning.image.tag` | `""` | db-manager image tag; defaults to the chart `appVersion` |
 | `databaseProvisioning.contexts` | `external,seed` | Migration groups to run; the default creates the external schema and loads reference data |
 | `databaseProvisioning.migrationMode` | `bootstrap` | Migration mode: `bootstrap`, `adopt`, or `schema-only` |
-| `databaseProvisioning.provisionPredefinedUsers` | `true` | Create the `appserver` and `app_manager` users |
+| `databaseProvisioning.provisionPredefinedUsers` | `true` | Create the `appserver` and `app_service` users |
+| `databaseProvisioning.tls.mode` | `disabled` | TLS for the db-manager connection: `disabled`, `required`, `verify-ca`, `verify-identity` (db-manager 6.18.0.0 or newer) |
+| `databaseProvisioning.tls.caSecret` | `""` | Secret holding the MySQL server CA certificate; required by the verify modes |
+| `databaseProvisioning.tls.caSecretKey` | `ca.crt` | Key of the CA certificate inside that Secret |
 
 See [`values.yaml`](wproofreader/values.yaml) for all database and provisioning
 settings.
@@ -430,12 +469,12 @@ and `wproofreader-app-values.yaml` – name of the file the data will be written
 
 > [!WARNING]
 > If you set passwords inline, this file contains the MySQL root password, the
-> `appserver` and `app_manager` passwords, and the license ticket in plain text.
+> `appserver` and `app_service` passwords, and the license ticket in plain text.
 > Strip them before sending the file to anyone:
 >
 > ```shell
 > helm get values --all --namespace wsc wproofreader-app \
->   | sed -E 's/^([[:space:]]*)(appServerPassword|rootPassword|appManagerPassword|licenseTicketID):.*/\1\2: "<redacted>"/' \
+>   | sed -E 's/^([[:space:]]*)(appServerPassword|rootPassword|adminPanelPassword|licenseTicketID):.*/\1\2: "<redacted>"/' \
 >   > wproofreader-app-values.yaml
 > ```
 

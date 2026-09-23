@@ -4,7 +4,7 @@
 #   kubectl -n am create secret generic wproofreader-db-credentials \
 #     --from-literal=root-password=... \
 #     --from-literal=appserver-password=... \
-#     --from-literal=app-manager-password=...
+#     --from-literal=admin-panel-password=...
 #
 #   helm install wproofreader-app ./wproofreader -n am \
 #     -f examples/values-dev.yaml --set licenseTicketID=$WPR_LICENSE_TICKET_ID

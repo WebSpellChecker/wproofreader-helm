@@ -1,4 +1,12 @@
 {{- if .Values.databaseProvisioning.enabled }}
+{{- $tls := .Values.databaseProvisioning.tls }}
+{{- if not (has $tls.mode (list "disabled" "required" "verify-ca" "verify-identity")) }}
+{{- fail "databaseProvisioning.tls.mode must be one of: disabled, required, verify-ca, verify-identity" }}
+{{- end }}
+{{- $tlsVerify := has $tls.mode (list "verify-ca" "verify-identity") }}
+{{- if and $tlsVerify (not $tls.caSecret) }}
+{{- fail "databaseProvisioning.tls.caSecret is required when databaseProvisioning.tls.mode is verify-ca or verify-identity" }}
+{{- end }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -83,14 +91,14 @@ spec:
                   name: {{ include "wproofreader.dbSecretName" . | quote }}
                   key: appserver-password
                   optional: {{ not .Values.databaseProvisioning.provisionPredefinedUsers }}
-            # --- app_manager user (App-Manager login) ---
+            # --- Admin-panel user (db-manager APP_MANAGER_* variables) ---
             - name: APP_MANAGER_USERNAME
-              value: {{ .Values.databaseProvisioning.appManagerUsername | quote }}
+              value: {{ .Values.databaseProvisioning.adminPanelUsername | quote }}
             - name: APP_MANAGER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "wproofreader.dbSecretName" . | quote }}
-                  key: app-manager-password
+                  key: admin-panel-password
                   # only optional when db-manager will not create the predefined users
                   optional: {{ not .Values.databaseProvisioning.provisionPredefinedUsers }}
             # --- safety + resilience ---
@@ -106,6 +114,13 @@ spec:
               value: {{ .Values.databaseProvisioning.changelogLockStaleMinutes | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.databaseProvisioning.logLevel | quote }}
+            # --- TLS to MySQL (db-manager 6.18.0.0 or newer) ---
+            - name: DB_TLS_MODE
+              value: {{ $tls.mode | quote }}
+            {{- if $tlsVerify }}
+            - name: DB_TLS_CA
+              value: /etc/db-manager/tls/{{ $tls.caSecretKey }}
+            {{- end }}
             {{- with .Values.databaseProvisioning.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -113,4 +128,16 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if $tlsVerify }}
+          volumeMounts:
+            - name: db-tls-ca
+              mountPath: /etc/db-manager/tls
+              readOnly: true
+          {{- end }}
+      {{- if $tlsVerify }}
+      volumes:
+        - name: db-tls-ca
+          secret:
+            secretName: {{ $tls.caSecret | quote }}
+      {{- end }}
 {{- end }}
