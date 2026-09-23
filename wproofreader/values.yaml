@@ -225,7 +225,7 @@ database:
   # no Secret of its own. Required keys:
   #   - appserver-password    when database.enabled, or provisionPredefinedUsers is true
   #   - root-password         when databaseProvisioning.enabled
-  #   - app-manager-password  when provisionPredefinedUsers is true
+  #   - admin-panel-password  when provisionPredefinedUsers is true
   existingSecret: ""
 
   # WProofreader DB-backed features (only applied when enabled)
@@ -253,23 +253,33 @@ databaseProvisioning:
   rootUser: root
   # privileged password; ignored if database.existingSecret is set
   rootPassword: ""
-  # App-Manager database user db-manager creates
-  appManagerUsername: app_manager
-  # App-Manager login password; required when provisionPredefinedUsers is true
-  # (ignored if database.existingSecret is set — put it under app-manager-password there)
-  appManagerPassword: ""
+  # Admin-panel database user db-manager creates
+  adminPanelUsername: app_service
+  # Admin-panel login password; required when provisionPredefinedUsers is true
+  # (ignored if database.existingSecret is set — put it under admin-panel-password there)
+  adminPanelPassword: ""
 
   # migration mode: bootstrap (create DB if missing) | adopt | schema-only
   migrationMode: bootstrap
   # migration contexts
   contexts: "external,seed"
-  # create the appserver + app_manager users (with grants) during provisioning
+  # create the appserver + app_service users (with grants) during provisioning
   provisionPredefinedUsers: true
   # take a backup before migrating. The Job mounts no volume, so the dump lives only
   # for the lifetime of the pod and is useful only for autoRollbackOnFailure below.
   createBackup: false
   # restore from backup if the migration fails
   autoRollbackOnFailure: false
+
+  # TLS for db-manager's own MySQL connection (Liquibase and the mysql client tools).
+  # Needs db-manager 6.18.0.0 or newer; older images ignore it and connect in clear text.
+  tls:
+    # disabled | required | verify-ca | verify-identity
+    mode: disabled
+    # Secret holding the MySQL server CA certificate (PEM); required by the verify modes
+    caSecret: ""
+    # key of the certificate inside that Secret
+    caSecretKey: ca.crt
 
   # connection retry — db-manager waits for MySQL to be reachable
   maxRetries: 60
