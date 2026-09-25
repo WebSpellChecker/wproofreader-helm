@@ -71,6 +71,18 @@ Create the name of the PersistentVolumeClaim.
 {{- end }}
 
 {{/*
+Name of the Secret holding database credentials.
+Uses database.existingSecret when provided, otherwise a chart-managed Secret.
+*/}}
+{{- define "wproofreader.dbSecretName" -}}
+{{- if .Values.database.existingSecret -}}
+{{- .Values.database.existingSecret -}}
+{{- else -}}
+{{- printf "%s-db" (include "wproofreader.fullname" .) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Prints key-value pairs encoded in base 64.
 */}}
 {{- define "wproofreader.printKeyValue" -}}
@@ -127,3 +139,19 @@ Returns default web port as an integer.
 {{- print 8080 }}
 {{- end }}
 {{- end }}
+
+{{/*
+Resolved db-manager image. The tag is coupled to the WProofreader version: it defaults to
+the chart appVersion because db-manager is released per WProofreader version and carries
+that version's schema migrations.
+*/}}
+{{- define "wproofreader.dbManagerImage" -}}
+{{- printf "%s:%s" .Values.databaseProvisioning.image.repository (.Values.databaseProvisioning.image.tag | default .Chart.AppVersion) -}}
+{{- end }}
+
+{{/*
+Name of the Secret holding the license ticket ID (key: license).
+*/}}
+{{- define "wproofreader.licenseSecretName" -}}
+{{- .Values.licenseExistingSecret | default (printf "%s-lic" (include "wproofreader.fullname" .)) -}}
+{{- end -}}

@@ -1,9 +1,9 @@
 # WebSpellChecker/WProofreader Helm Chart
 
-This Helm chart provides all the basic infrastructure needed to deploy 
+This Helm chart provides all the basic infrastructure needed to deploy
 WProofreader Server to a Kubernetes cluster.
-By default, the image is pulled from [WebSpellChecker Docker Hub](https://hub.docker.com/r/webspellchecker/wproofreader), 
-however, many users would require building their own local images with custom configuration. 
+By default, the image is pulled from [WebSpellChecker Docker Hub](https://hub.docker.com/r/webspellchecker/wproofreader),
+however, many users would require building their own local images with custom configuration.
 Please refer to [our other repository](https://github.com/WebSpellChecker/wproofreader-docker/) to get started with building your own docker image.
 
 ## Prerequisites
@@ -16,59 +16,81 @@ Before you begin, make sure you have the required environment:
 ## Basic installation
 
 The Chart can be installed the usual way using all the defaults:
+
 ```shell
 git clone https://github.com/WebSpellChecker/wproofreader-helm.git
 cd wproofreader-helm
 helm install --create-namespace --namespace wsc wproofreader-app wproofreader 
 ```
+
 where `wsc` is the namespace where the app should be installed,
-`wproofreader-app` is the Helm release name, 
+`wproofreader-app` is the Helm release name,
 `wproofreader` is the local Chart directory.
 
 API requests should be sent to the Kubernetes Service instance, reachable at
+
 ```text
 http(s)://<service-name>.<namespace>.svc:<service-port>
 ```
-where 
+
+where
+
 - `http` or `https` depends on the protocol used;
-- `<service-name>` is the name of the Service instance, which would be `wproofreader-app` with the above 
+- `<service-name>` is the name of the Service instance, which would be `wproofreader-app` with the above
 command, unless overwritten using `fullnameOverride` `values.yaml` parameter;
 - `<namespace>` is the namespace where the chart was installed;
 - `.svc` can be omitted in most cases, but is recommended to keep;
-- `<service-port>` is `80` or `443` by default for HTTP and HTTPS, respectively, 
+- `<service-port>` is `80` or `443` by default for HTTP and HTTPS, respectively,
 in which case it can be omitted, unless explicitly overwritten with `service.port`
 in `values.yaml`.
 
 ## License activation
 
-There are three ways the service can be activated:
+There are four ways the service can be activated:
+
 1. During `docker build` by setting the `WPR_LICENSE_TICKET_ID` argument in Dockerfile or CLI (`--build-arg WPR_LICENSE_TICKET_ID=${MY_LOCAL_VARIABLE}`).
 2. Through the `values.yaml` config file (`licenseTicketID` parameter).
 3. During chart deployment/upgrade CLI call using the flag:
+
 ```shell
 --set licenseTicketID=${WPR_LICENSE_TICKET_ID}
 ```
+
 provided that `WPR_LICENSE_TICKET_ID` is set in your environment.
+
+4. Through a pre-existing Secret (`licenseExistingSecret` parameter). The chart does not create the license Secret. It reads the license ticket from the `license` key of the specified Secret, so the ticket is not stored in the chart values or the Helm release.
+
+```shell
+kubectl -n wsc create secret generic wpr-license --from-literal=license=${WPR_LICENSE_TICKET_ID}
+helm install wproofreader-app ./wproofreader --namespace wsc --set licenseExistingSecret=wpr-license
+```
+
+If you change the ticket inside that Secret, restart the Deployment yourself
+(`kubectl -n wsc rollout restart deployment/wproofreader-app`). Environment variables are read
+once at container start, and the chart only restarts pods automatically for the Secret it manages.
+
+To sync that Secret from an external secret store, see [Extra volumes](#extra-volumes).
 
 > [!IMPORTANT]
 > If you are attempting to build a production environment, it's recommended to use the custom Docker image with WProofreader Server instead of the public one published on Docker Hub. With the custom image, you won't need to activate the license on the container start. Thus, you just skip this step. Otherwise, you may face the issue with reaching the maximum allowed number of license activation attempts (by default, 25). In this case, you need to [contact support](https://webspellchecker.com/contact-us/) to extend/reset the license activation limit. Nevertheless, using the public image is acceptable for evaluation, testing and development purposes.
 
 ## HTTPS
 
-By default, the server is set to communicate via HTTP, which is fine for 
-communicating withing a closed network. For outbound connections it is of 
+By default, the server is set to communicate via HTTP, which is fine for
+communicating withing a closed network. For outbound connections it is of
 the utmost importance that clients communicate over TLS.
 
 To do this, the following parameters have to change in `values.yaml`:
+
 1. `useHTTPS` to `true`.
-2. `certFile` and `keyFile` to relative paths of the certificate and key 
+2. `certFile` and `keyFile` to relative paths of the certificate and key
 files within the chart directory. Keep in mind that Helm can't reach outside the chart directory.
 3. `certMountPath` to whatever path was used in the `Dockerfile`.
 For the DockerHub image, one should stick to the default value, which is `/certificate`.
 
 > [!NOTE]
-> `certFile` and `keyFile` filenames, as well as `certMountPath` have to match to values set in the 
-> `Dockerfile` used for building the image. Otherwise, `nginx` config (`/etc/nginx/conf.d/wscservice.conf`) 
+> `certFile` and `keyFile` filenames, as well as `certMountPath` have to match to values set in the
+> `Dockerfile` used for building the image. Otherwise, `nginx` config (`/etc/nginx/conf.d/wscservice.conf`)
 > has to be updated with new filenames and locations.
 > The defaults for the DockerHub image are `cert.pem`, `key.pem`, and `/certificate`, respectively.
 
@@ -82,6 +104,7 @@ The Helm chart provides flexible options for managing custom dictionaries in you
 
 When `dictionaries.enabled` is set to `true` and neither `dictionaries.localPath` nor `dictionaries.existingClaim` storage configuration is provided, Kubernetes will dynamically provision a Persistent Volume based on `dictionaries.storageClass` that has to be defined externally.
 This is the simplest way to manage custom dictionaries in a Kubernetes environment:
+
 ```yaml
 dictionaries:
   enabled: true
@@ -96,10 +119,11 @@ dictionaries:
 
 **2. hostPath volume (node-local storage)**
 
-Use this option if you prefer mounting dictionaries from the local filesystem of a specific node. 
+Use this option if you prefer mounting dictionaries from the local filesystem of a specific node.
 This is useful when you have a single-node cluster or need to share dictionaries across multiple pods running on the same node.
 
 To enable WProofreader Server to use your custom dictionaries with Kubernetes `hostPath` storage type, follow these steps:
+
 1. Upload the files to a directory on the node where the chart will be deployed.
    Ensure this node has `wproofreader.domain-name.com/app` label.
 2. Set `dictionaries.localPath` parameter to the absolute path of this directory.
@@ -108,21 +132,24 @@ as well as other `dictionaries` parameters if needed.
 4. Install the chart as usual.
 
 The Chart uses `nodeAffinity` for mounting Persistent Volume of type `local`.
-This allows the user to specify which node will host WProofreader Server 
+This allows the user to specify which node will host WProofreader Server
 on a cluster, even a single-node one.
 
 To assign this role to a node, you need to attach a label to it. It can be any label you choose,
 e.g., `wproofreader.domain-name.com/app`:
+
 ```shell
 kubectl label node <node-name> wproofreader.domain-name.com/app=
 ```
+
 Note that `=` is required but the value after it is not important (empty in this example).
 
 Keep in mind that your custom label has to be either updated in `values.yaml`
-(`nodeAffinityLabel` key, recommended), or passed to `helm` calls using 
+(`nodeAffinityLabel` key, recommended), or passed to `helm` calls using
 `--set nodeAffinityLabel=wproofreader.domain-name.com/app`.
 
 Example `values.yaml` configuration:
+
 ```yaml
 nodeAffinityLabel: "wproofreader.domain-name.com/app"
 
@@ -132,31 +159,39 @@ dictionaries:
 ```
 
 To install the Chart with the custom dictionaries feature enabled and the local path set to the directory on the node where dictionaries are stored:
+
 ```shell
 helm install --create-namespace --namespace wsc wproofreader-app wproofreader \
   --set nodeAffinityLabel=wproofreader.domain-name.com/app \
   --set dictionaries.enabled=true \
   --set dictionaries.localPath=/dictionaries
 ```
-The dictionary files can be uploaded after the chart installation, but the `dictionaries.localPath` 
-folder must exist on the node beforehand. 
-Dictionaries can be uploaded to the node VM using standard methods (`scp`, `rsync`, `FTP`, etc.) or 
-the `kubectl cp` command. With `kubectl cp`, you need to use one of the deployment's pods. 
+
+The dictionary files can be uploaded after the chart installation, but the `dictionaries.localPath`
+folder must exist on the node beforehand.
+Dictionaries can be uploaded to the node VM using standard methods (`scp`, `rsync`, `FTP`, etc.) or
+the `kubectl cp` command. With `kubectl cp`, you need to use one of the deployment's pods.
 Once uploaded, the files will automatically appear on all pods and persist
 even if the pods are restarted. Follow these steps:
+
 1. Get the name of one of the pods. For the Helm release named `wproofreader-app` in the `wsc` namespace, use
+
    ```shell
    POD=$(kubectl get pods -n wsc -l app.kubernetes.io/instance=wproofreader-app -o jsonpath="{.items[0].metadata.name}")
    ```
+
 2. Upload the files to the pod
+
    ```shell
    kubectl cp -n wsc <local path to files> $POD:/dictionaries
    ```
+
    Replace `/dictionaries` with your custom `dictionaries.mountPath` value if applicable.
-   
+
 **3. Existing Persistent Volume Claim (PVC)**
 
 There is also a way in the Chart to specify an already existing Persistent Volume Claim (PVC) with dictionaries that can be configured to operate on multiple nodes (e.g., NFS). To do this, enable the custom dictionary feature by setting the `dictionaries.enabled` parameter to `true` and specifying the name of the existing PVC in the `dictionaries.existingClaim` parameter.
+
 ```yaml
 dictionaries:
   enabled: true
@@ -166,13 +201,207 @@ dictionaries:
 **4. Default behavior**
 
 If `dictionaries.enabled` is `false`, the chart will use an ephemeral `emptyDir` volume for `/dictionaries`.
-This means any uploaded dictionaries will be lost after pod restarts. 
+This means any uploaded dictionaries will be lost after pod restarts.
 This setup is only suitable for development and testing.
 
 > [!TIP]
 > Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
 >
 > However, please note that provisioning the Persistent Volume (PV) and PVC for storage backends like NFS is outside the scope of this Chart. You will need to provision the PV and PVC separately according to your storage backend's documentation before using the `dictionaries.existingClaim` parameter.
+
+## Extra volumes
+
+`extraVolumes` adds volumes to the AppServer Pod and `extraVolumeMounts` mounts them into
+its container. Use them for anything the chart does not model, for example a Secrets
+Store CSI volume, a custom configuration file, or a CA bundle. Both take the standard
+Kubernetes `volumes` and `volumeMounts` syntax and are empty by default.
+
+A common case is loading the license ticket from an external secret store such as Vault
+or AWS Secrets Manager. The Secrets Store CSI driver creates the synced Kubernetes Secret
+only while a Pod mounts the CSI volume, so mount it here and point
+`licenseExistingSecret` at the synced Secret:
+
+```yaml
+licenseExistingSecret: wpr-license      # created by the SecretProviderClass secretObjects
+extraVolumes:
+  - name: secrets-store
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: vault-wproofreader-license
+extraVolumeMounts:
+  - name: secrets-store
+    mountPath: /mnt/secrets-store
+    readOnly: true
+```
+
+The `SecretProviderClass` must map the ticket to the `license` key of that Secret. On the
+first start the container may wait a few seconds in `CreateContainerConfigError` until
+the driver has created the Secret; kubelet retries on its own.
+
+## Database service provider
+
+By default, WProofreader Server runs without a database. The chart provides two
+separate options for database support:
+
+- `database` connects WProofreader Server to a MySQL database. When
+  `database.enabled` is `true`, the chart adds the required `WPR_DATABASE_*`
+  environment variables to the AppServer container. It reads the password from
+  a Kubernetes Secret.
+- `databaseProvisioning` prepares the database with
+  [`db-manager`](https://hub.docker.com/r/webspellchecker/db-manager). When
+  `databaseProvisioning.enabled` is `true`, the chart runs a Kubernetes Job
+  before each Helm install or upgrade. By default, the Job creates the database
+  if it does not exist, applies all required migrations, and creates the
+  `appserver` and `app_service` users with the required permissions.
+
+You can enable either option or both. For example, you can connect to a database
+that was prepared outside this chart, or you can run the provisioning Job without
+enabling the database connection for WProofreader Server.
+
+> [!IMPORTANT]
+> This chart does not install a MySQL server. Set `database.host` to an existing
+> MySQL server, such as a service inside the cluster or an external managed service.
+> The provisioning Job connects with an administrative user. The default user is
+> `root`, and you can change it with `databaseProvisioning.rootUser`.
+
+### Connect to and provision a database
+
+Set the password variables in your environment, then run:
+
+```shell
+helm install wproofreader-app ./wproofreader --namespace wsc --create-namespace \
+  --set licenseTicketID=$WPR_LICENSE_TICKET_ID \
+  --set database.enabled=true \
+  --set database.host=my-mysql-primary.wsc.svc.cluster.local \
+  --set database.appServerPassword=$APPSERVER_PASSWORD \
+  --set databaseProvisioning.enabled=true \
+  --set databaseProvisioning.rootPassword=$MYSQL_ROOT_PASSWORD \
+  --set databaseProvisioning.adminPanelPassword=$ADMIN_PANEL_PASSWORD
+```
+
+### Connect to an existing database without provisioning
+
+Use this option when the database, schema, and application user already exist:
+
+```shell
+helm install wproofreader-app ./wproofreader --namespace wsc \
+  --set licenseTicketID=$WPR_LICENSE_TICKET_ID \
+  --set database.enabled=true \
+  --set database.host=my-mysql-primary.wsc.svc.cluster.local \
+  --set database.appServerPassword=$APPSERVER_PASSWORD
+```
+
+### Use an existing Secret
+
+You can store the database passwords in an existing Kubernetes Secret. The Secret
+must contain these keys:
+
+- `root-password` when provisioning is enabled;
+- `appserver-password` when database support is enabled, or when provisioning creates the predefined users;
+- `admin-panel-password` when provisioning and predefined user creation are enabled.
+
+Set `database.existingSecret` to the Secret name. The chart will not create a
+separate database Secret.
+
+When you change `appserver-password` or `admin-panel-password`, run `helm upgrade` so the
+provisioning Job applies the new password to the MySQL account: db-manager 6.18.0.0 or
+newer sets it with `ALTER USER` when the stored password no longer works, and leaves an
+account whose password already matches alone. Older db-manager images never touch an
+existing account, so change the password in MySQL yourself. Then restart the Deployment
+yourself: the chart only restarts pods automatically for the Secret it manages.
+
+> [!TIP]
+> For production, use an existing Secret instead of passing passwords in the
+> Helm command.
+
+```shell
+kubectl -n wsc create secret generic wpr-db \
+  --from-literal=appserver-password=... \
+  --from-literal=root-password=... \
+  --from-literal=admin-panel-password=...
+
+helm install wproofreader-app ./wproofreader --namespace wsc \
+  --set licenseTicketID=$WPR_LICENSE_TICKET_ID \
+  --set database.enabled=true \
+  --set database.host=my-mysql-primary.wsc.svc.cluster.local \
+  --set database.existingSecret=wpr-db \
+  --set databaseProvisioning.enabled=true
+```
+
+### Encrypt the provisioning connection
+
+By default db-manager talks to MySQL in clear text, which a managed database with
+`require_secure_transport=ON` refuses. From db-manager 6.18.0.0 the connection can be
+encrypted; older images ignore the setting.
+
+```yaml
+databaseProvisioning:
+  tls:
+    mode: required            # encrypt, do not check the server certificate
+```
+
+`required` works with any server, including one with an auto-generated self-signed
+certificate. To also verify the server certificate, put the CA certificate in a Secret
+and select a verify mode:
+
+```shell
+kubectl -n wsc create secret generic mysql-ca --from-file=ca.crt=/path/to/ca.pem
+```
+
+```yaml
+databaseProvisioning:
+  tls:
+    mode: verify-identity     # or verify-ca
+    caSecret: mysql-ca
+    caSecretKey: ca.crt
+```
+
+The chart mounts the Secret into the Job at `/etc/db-manager/tls` and points `DB_TLS_CA`
+at it. This setting covers the provisioning Job only; WProofreader Server's own database
+connection is configured through its `WPR_DATABASE_*` variables.
+
+### Key parameters
+
+| Parameter | Default | Description |
+| ----------- | --------- | ------------- |
+| `database.enabled` | `false` | Enable the database service provider for WProofreader Server |
+| `database.host` | `""` | MySQL host; required for database support or provisioning |
+| `database.port` | `3306` | MySQL port |
+| `database.name` | `cloud_service` | Database name |
+| `database.user` | `appserver` | MySQL user for WProofreader Server |
+| `database.appServerPassword` | `""` | Password for `database.user`; ignored when `database.existingSecret` is set |
+| `database.existingSecret` | `""` | Existing Secret that contains the database passwords |
+| `databaseProvisioning.enabled` | `false` | Prepare the database with db-manager |
+| `databaseProvisioning.rootUser` | `root` | Administrative MySQL user for provisioning |
+| `databaseProvisioning.rootPassword` | `""` | Password for the administrative MySQL user; ignored when `database.existingSecret` is set |
+| `databaseProvisioning.adminPanelUsername` | `app_service` | Admin-panel MySQL user created during provisioning |
+| `databaseProvisioning.adminPanelPassword` | `""` | Password for the Admin-panel MySQL user; ignored when `database.existingSecret` is set |
+| `databaseProvisioning.image.repository` | `webspellchecker/db-manager` | db-manager image repository |
+| `databaseProvisioning.image.tag` | `""` | db-manager image tag; defaults to the chart `appVersion` |
+| `databaseProvisioning.contexts` | `external,seed` | Migration groups to run; the default creates the external schema and loads reference data |
+| `databaseProvisioning.migrationMode` | `bootstrap` | Migration mode: `bootstrap`, `adopt`, or `schema-only` |
+| `databaseProvisioning.provisionPredefinedUsers` | `true` | Create the `appserver` and `app_service` users |
+| `databaseProvisioning.tls.mode` | `disabled` | TLS for the db-manager connection: `disabled`, `required`, `verify-ca`, `verify-identity` (db-manager 6.18.0.0 or newer) |
+| `databaseProvisioning.tls.caSecret` | `""` | Secret holding the MySQL server CA certificate; required by the verify modes |
+| `databaseProvisioning.tls.caSecretKey` | `ca.crt` | Key of the CA certificate inside that Secret |
+
+See [`values.yaml`](wproofreader/values.yaml) for all database and provisioning
+settings.
+
+> [!NOTE]
+> The db-manager image contains the migrations for a specific WProofreader Server
+> version. Its image tag therefore defaults to the chart `appVersion`. If you set
+> a custom WProofreader Server `image.tag`, also set
+> `databaseProvisioning.image.tag` to the matching version. An image with that tag
+> must exist in the db-manager image repository.
+
+> [!NOTE]
+> The chart creates the `<release-name>-db` Secret as a Helm hook so that it is
+> available to the provisioning Job. Helm does not remove hook resources during
+> uninstall. The completed provisioning Job remains until its configured TTL
+> expires. Delete the Secret and Job manually if you want to remove all resources.
 
 ## Use in production
 
@@ -202,6 +431,7 @@ The Helm chart includes readiness and liveness probes to help Kubernetes manage 
 
 You may thoughtfully modify the Chart default values based on your environment's resources and application needs in the `values.yaml` file under the `readinessProbeOptions` and `livenessProbeOptions` sections.
 Example:
+
 ```yaml
 readinessProbeOptions:
   initialDelaySeconds: 10
@@ -212,11 +442,12 @@ readinessProbeOptions:
 ```
 
 ### Application scaling
+
 WProofreader Server can be scaled horizontally by changing the number of replicas.
-This can be done by setting the `replicaCount` parameter in the `values.yaml` file. 
+This can be done by setting the `replicaCount` parameter in the `values.yaml` file.
 The default value is `1`. For example, to scale the application to 3 replicas, set the `--set replicaCount=3` flag when installing the Helm chart.
 
-For dynamic scaling based on resource utilization, you can use Kubernetes Horizontal Pod Autoscaler (HPA). 
+For dynamic scaling based on resource utilization, you can use Kubernetes Horizontal Pod Autoscaler (HPA).
 To use the HPA, you need to turn on the metrics server in your Kubernetes cluster. The HPA will then automatically change the number of pods in a deployment based on how much CPU is being used.
 The HPA is not enabled by default in the Helm chart. To enable it, set the `autoscaling.enabled` parameter to `true` in the `values.yaml` file.
 
@@ -224,33 +455,39 @@ The HPA is not enabled by default in the Helm chart. To enable it, set the `auto
 > WProofreader Server can be scaled only based on CPU usage metric. The `targetMemoryUtilizationPercentage` is not supported.
 
 ## Common issues
+
 ### Readiness probe failed
 
 Check the pod logs to see if the license ID has not been provided:
+
 ```shell
 POD=$(kubectl get pods -n <namespace> -l app.kubernetes.io/instance=<release-name> -o jsonpath="{.items[0].metadata.name}")
 kubectl logs -n <namespace> $POD
 ```
 
-If so, refer to [license section](#license-activation). 
+If so, refer to [license section](#license-activation).
 Existing release can be patched with
+
 ```shell
 helm upgrade -n <namespace> <release-name> wproofreader --set licenseTicketID=<license ID> 
 ```
 
-Keep in mind, that upcoming `helm upgrade` have to carry on the `licenseTicketID` flag, 
+Keep in mind, that upcoming `helm upgrade` have to carry on the `licenseTicketID` flag,
 so that it's not overwritten with the (empty) value from `values.yaml`.
+To stop repeating the flag, put the ticket in a Secret of your own and set
+`licenseExistingSecret` instead, see [License activation](#license-activation).
 
 ### Something got broken following helm upgrade
 
-Please make sure that all values arguments passed as `--set` CLI arguments 
-were duplicated with your latest `helm upgrade` call, or simply use `--reuse-values` flag. 
+Please make sure that all values arguments passed as `--set` CLI arguments
+were duplicated with your latest `helm upgrade` call, or simply use `--reuse-values` flag.
 Otherwise, they are overwritten with the contents of `values.yaml`.
 
 ## Sample Kubernetes manifests
 
 For illustration purposes, please find exported Kubernetes manifests in the `manifests` folder.
 If you need to export the manifest files from this sample Helm Chart, please use the following command:
+
 ```shell
 helm template --namespace wsc wproofreader-app wproofreader \
   --set licenseTicketID=qWeRtY123 \
@@ -266,24 +503,42 @@ helm template --namespace wsc wproofreader-app wproofreader \
 The service might fail to start up properly if misconfigured. For troubleshooting, it can be beneficial to get the full configuration you attempted to deploy. If needed, later it can be shared with the support team for further investigation.
 
 There are several ways to gather necessary details:
+
 1. Get the values (user-configurable options) used by Help to generate Kubernetes manifests:
+
 ```shell
 helm get values --all --namespace wsc wproofreader-app > wproofreader-app-values.yaml
 ```
-where `wsc` is the namespace and `wproofreader-app` – the name of your release, 
+
+where `wsc` is the namespace and `wproofreader-app` – the name of your release,
 and `wproofreader-app-values.yaml` – name of the file the data will be written to.
 
+> [!WARNING]
+> If you set passwords inline, this file contains the MySQL root password, the
+> `appserver` and `app_service` passwords, and the license ticket in plain text.
+> Strip them before sending the file to anyone:
+>
+> ```shell
+> helm get values --all --namespace wsc wproofreader-app \
+>   | sed -E 's/^([[:space:]]*)(appServerPassword|rootPassword|adminPanelPassword|licenseTicketID):.*/\1\2: "<redacted>"/' \
+>   > wproofreader-app-values.yaml
+> ```
+
 2. Extract the full Kubernetes manifest(s) as follows:
+
 ```shell
 helm get manifest --namespace wsc wproofreader-app > manifests.yaml
 ```
 
-If you do not have access to `helm`, same can be accomplished using 
+If you do not have access to `helm`, same can be accomplished using
 `kubectl`. To get manifests for all resources in the `wsc` namespace, run:
+
 ```shell
 kubectl get all --namespace wsc -o yaml > manifests.yaml
 ```
+
 3. Retrieve the logs of all `wsproofreader-app` pods in the `wsc` namespace:
+
 ```shell
 kubectl logs -n wsc -l app.kubernetes.io/instance=wproofreader-app
 ```
