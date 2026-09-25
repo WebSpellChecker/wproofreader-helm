@@ -141,9 +141,8 @@ Returns default web port as an integer.
 {{- end }}
 
 {{/*
-Resolved db-manager image. The tag is coupled to the WProofreader version: it defaults to
-the chart appVersion because db-manager is released per WProofreader version and carries
-that version's schema migrations.
+Resolved db-manager image. db-manager is released per WProofreader version and carries that
+version's schema migrations; an empty tag falls back to the chart appVersion.
 */}}
 {{- define "wproofreader.dbManagerImage" -}}
 {{- printf "%s:%s" .Values.databaseProvisioning.image.repository (.Values.databaseProvisioning.image.tag | default .Chart.AppVersion) -}}

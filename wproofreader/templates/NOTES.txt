@@ -19,7 +19,7 @@ Database service provider is ENABLED (schema "{{ .Values.database.name }}" on {{
 {{- end }}
 {{- if .Values.databaseProvisioning.enabled }}
     db-manager provisioning ran as a pre-install/pre-upgrade hook (schema "{{ .Values.database.name }}" on {{ .Values.database.host }})
-    using {{ include "wproofreader.dbManagerImage" . }} (tag follows the chart appVersion unless databaseProvisioning.image.tag is set). Check it with:
+    using {{ include "wproofreader.dbManagerImage" . }}. Check it with:
     kubectl logs --namespace {{ .Release.Namespace }} job/{{ include "wproofreader.fullname" . }}-db-provision
 {{- else if .Values.database.enabled }}
     Provisioning is OFF (databaseProvisioning.enabled=false) — ensure the schema and the "{{ .Values.database.user }}" user already exist in {{ .Values.database.name }}.

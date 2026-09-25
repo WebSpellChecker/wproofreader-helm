@@ -48,8 +48,8 @@ spec:
       {{- end }}
       containers:
         - name: db-manager
-          # tag defaults to the chart appVersion (the WProofreader version) so the
-          # db-manager image always carries the matching per-version schema migrations.
+          # db-manager carries the schema migrations of one WProofreader version; keep its
+          # tag in line with the WProofreader image tag.
           image: {{ include "wproofreader.dbManagerImage" . | quote }}
           imagePullPolicy: {{ .Values.databaseProvisioning.image.pullPolicy }}
           {{- with .Values.databaseProvisioning.securityContext }}
