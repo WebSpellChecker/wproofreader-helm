@@ -34,8 +34,8 @@ spec:
         - name: wproofreader
           securityContext:
             {}
-          image: "webspellchecker/wproofreader:6.16.0.0"
-          imagePullPolicy: IfNotPresent
+          image: "webspellchecker/wproofreader:latest"
+          imagePullPolicy: Always
           ports:
             - name: container-port
               containerPort: 8443
