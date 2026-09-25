@@ -46,7 +46,7 @@ in `values.yaml`.
 
 ## License activation
 
-There are three ways the service can be activated:
+There are four ways the service can be activated:
 
 1. During `docker build` by setting the `WPR_LICENSE_TICKET_ID` argument in Dockerfile or CLI (`--build-arg WPR_LICENSE_TICKET_ID=${MY_LOCAL_VARIABLE}`).
 2. Through the `values.yaml` config file (`licenseTicketID` parameter).
@@ -57,6 +57,19 @@ There are three ways the service can be activated:
 ```
 
 provided that `WPR_LICENSE_TICKET_ID` is set in your environment.
+
+4. Through a pre-existing Secret (`licenseExistingSecret` parameter). The chart does not create the license Secret. It reads the license ticket from the `license` key of the specified Secret, so the ticket is not stored in the chart values or the Helm release.
+
+```shell
+kubectl -n wsc create secret generic wpr-license --from-literal=license=${WPR_LICENSE_TICKET_ID}
+helm install wproofreader-app ./wproofreader --namespace wsc --set licenseExistingSecret=wpr-license
+```
+
+If you change the ticket inside that Secret, restart the Deployment yourself
+(`kubectl -n wsc rollout restart deployment/wproofreader-app`). Environment variables are read
+once at container start, and the chart only restarts pods automatically for the Secret it manages.
+
+To sync that Secret from an external secret store, see [Extra volumes](#extra-volumes).
 
 > [!IMPORTANT]
 > If you are attempting to build a production environment, it's recommended to use the custom Docker image with WProofreader Server instead of the public one published on Docker Hub. With the custom image, you won't need to activate the license on the container start. Thus, you just skip this step. Otherwise, you may face the issue with reaching the maximum allowed number of license activation attempts (by default, 25). In this case, you need to [contact support](https://webspellchecker.com/contact-us/) to extend/reset the license activation limit. Nevertheless, using the public image is acceptable for evaluation, testing and development purposes.
@@ -195,6 +208,37 @@ This setup is only suitable for development and testing.
 > Using an existing PVC is the recommended way because it ensures that your data will persist even if the Chart is uninstalled. This approach offers a reliable method to maintain data integrity and availability across deployments.
 >
 > However, please note that provisioning the Persistent Volume (PV) and PVC for storage backends like NFS is outside the scope of this Chart. You will need to provision the PV and PVC separately according to your storage backend's documentation before using the `dictionaries.existingClaim` parameter.
+
+## Extra volumes
+
+`extraVolumes` adds volumes to the AppServer Pod and `extraVolumeMounts` mounts them into
+its container. Use them for anything the chart does not model, for example a Secrets
+Store CSI volume, a custom configuration file, or a CA bundle. Both take the standard
+Kubernetes `volumes` and `volumeMounts` syntax and are empty by default.
+
+A common case is loading the license ticket from an external secret store such as Vault
+or AWS Secrets Manager. The Secrets Store CSI driver creates the synced Kubernetes Secret
+only while a Pod mounts the CSI volume, so mount it here and point
+`licenseExistingSecret` at the synced Secret:
+
+```yaml
+licenseExistingSecret: wpr-license      # created by the SecretProviderClass secretObjects
+extraVolumes:
+  - name: secrets-store
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: vault-wproofreader-license
+extraVolumeMounts:
+  - name: secrets-store
+    mountPath: /mnt/secrets-store
+    readOnly: true
+```
+
+The `SecretProviderClass` must map the ticket to the `license` key of that Secret. On the
+first start the container may wait a few seconds in `CreateContainerConfigError` until
+the driver has created the Secret; kubelet retries on its own.
 
 ## Database service provider
 
@@ -430,6 +474,8 @@ helm upgrade -n <namespace> <release-name> wproofreader --set licenseTicketID=<l
 
 Keep in mind, that upcoming `helm upgrade` have to carry on the `licenseTicketID` flag,
 so that it's not overwritten with the (empty) value from `values.yaml`.
+To stop repeating the flag, put the ticket in a Secret of your own and set
+`licenseExistingSecret` instead, see [License activation](#license-activation).
 
 ### Something got broken following helm upgrade
 

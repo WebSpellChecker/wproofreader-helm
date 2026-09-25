@@ -148,3 +148,10 @@ that version's schema migrations.
 {{- define "wproofreader.dbManagerImage" -}}
 {{- printf "%s:%s" .Values.databaseProvisioning.image.repository (.Values.databaseProvisioning.image.tag | default .Chart.AppVersion) -}}
 {{- end }}
+
+{{/*
+Name of the Secret holding the license ticket ID (key: license).
+*/}}
+{{- define "wproofreader.licenseSecretName" -}}
+{{- .Values.licenseExistingSecret | default (printf "%s-lic" (include "wproofreader.fullname" .)) -}}
+{{- end -}}

@@ -12,11 +12,31 @@ webPort: ""
 # note: Helm does not allow its templates to read environment variables directly
 licenseTicketID: ""
 
+# name of a pre-existing Secret holding the license ticket ID under the key `license`.
+# When set, the chart renders no license Secret of its own and licenseTicketID is ignored.
+# Restart the Deployment yourself after changing the ticket in that Secret.
+licenseExistingSecret: ""
+
 # extra environment variables to pass to the container
 extraEnv: []
 # extraEnv:
 #   - name: WPR_JVM_MAX_MEMORY_SIZE_MB
 #     value: "2048"
+
+# extra volumes / mounts for the AppServer pod, e.g. a Secrets Store CSI volume that also
+# syncs the license into the Secret named by licenseExistingSecret
+extraVolumes: []
+# extraVolumes:
+#   - name: secrets-store
+#     csi:
+#       driver: secrets-store.csi.k8s.io
+#       readOnly: true
+#       volumeAttributes: { secretProviderClass: vault-wproofreader-license }
+extraVolumeMounts: []
+# extraVolumeMounts:
+#   - name: secrets-store
+#     mountPath: /mnt/secrets-store
+#     readOnly: true
 
 # directory of the service for web and API requests, e.g. http://localhost/wscservice/api?cmd=ver
 virtualDir: wscservice
