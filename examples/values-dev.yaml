@@ -11,7 +11,7 @@
 
 image:
   # -base variant of the chart appVersion; "base" alone is a floating tag
-  tag: 6.16.0.0-base
+  tag: 6.18.1.0-base
 
 database:
   enabled: true

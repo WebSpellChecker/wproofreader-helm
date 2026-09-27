@@ -379,8 +379,8 @@ connection is configured through its `WPR_DATABASE_*` variables.
 | `databaseProvisioning.adminPanelUsername` | `app_service` | Admin-panel MySQL user created during provisioning |
 | `databaseProvisioning.adminPanelPassword` | `""` | Password for the Admin-panel MySQL user; ignored when `database.existingSecret` is set |
 | `databaseProvisioning.image.repository` | `webspellchecker/db-manager` | db-manager image repository |
-| `databaseProvisioning.image.tag` | `latest` | db-manager image tag; pin it to the same version as the WProofreader `image.tag` |
-| `databaseProvisioning.image.pullPolicy` | `Always` | Pull policy for the db-manager image |
+| `databaseProvisioning.image.tag` | `""` | db-manager image tag; defaults to the chart `appVersion` |
+| `databaseProvisioning.image.pullPolicy` | `IfNotPresent` | Pull policy for the db-manager image |
 | `databaseProvisioning.contexts` | `external,seed` | Migration groups to run; the default creates the external schema and loads reference data |
 | `databaseProvisioning.migrationMode` | `bootstrap` | Migration mode: `bootstrap`, `adopt`, or `schema-only` |
 | `databaseProvisioning.provisionPredefinedUsers` | `true` | Create the `appserver` and `app_service` users |
@@ -393,8 +393,9 @@ settings.
 
 > [!NOTE]
 > The db-manager image contains the migrations for a specific WProofreader Server
-> version. When you pin the WProofreader Server `image.tag`, pin
-> `databaseProvisioning.image.tag` to the same version. See
+> version. Its image tag therefore defaults to the chart `appVersion`. If you set
+> a custom WProofreader Server `image.tag`, also set
+> `databaseProvisioning.image.tag` to the same published version. See
 > [Image versions](#image-versions).
 
 > [!NOTE]
@@ -405,34 +406,38 @@ settings.
 
 ## Image versions
 
-By default the chart runs the newest releases: `image.tag` and
-`databaseProvisioning.image.tag` are `latest`, and both images use
-`pullPolicy: Always`, so every Pod start checks the registry and a restart picks up a
-new release.
+By default, both image tags are empty and resolve to the chart `appVersion`
+(`6.18.1.0`). This keeps WProofreader Server and its schema migrations on the same
+immutable release and makes upgrades and rollbacks reproducible.
 
-For production, pin both images to the same WProofreader version, so an upgrade is a
-deliberate change you can roll back:
+When overriding the version, pin both images to the same published WProofreader
+release:
 
 ```yaml
 image:
-  tag: "6.16.0.0"
+  tag: "6.18.1.0"
   pullPolicy: IfNotPresent
 databaseProvisioning:
   image:
-    tag: "6.16.0.0"
+    tag: "6.18.1.0"
     pullPolicy: IfNotPresent
 ```
 
-db-manager carries the schema migrations of one WProofreader version, so the two tags
-must match. An empty tag uses the chart `appVersion`.
+db-manager carries the schema migrations of one WProofreader version, so both tags
+must refer to the same release. Before selecting a version, verify that suitable tags
+are published in both image repositories.
 
-With `latest`, keep in mind:
+You can explicitly select `latest` for short-lived development environments, but do
+not use it with database provisioning or multiple replicas. Mutable tags are resolved
+independently whenever a container starts, so Pod restarts or scale-out can mix
+WProofreader versions without running the matching database migration. They also make
+Helm rollback unable to restore the previous image.
 
-- the WProofreader and db-manager images must both be published for the same release;
-- `helm rollback` restores the chart values, not the previous image, because `latest`
-  then points at the newer release;
-- `Always` contacts the registry on every Pod start, which counts against registry pull
-  limits and needs the registry to be reachable.
+```yaml
+image:
+  tag: latest
+  pullPolicy: Always
+```
 
 ## Use in production
 

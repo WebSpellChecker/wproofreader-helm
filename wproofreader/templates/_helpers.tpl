@@ -36,8 +36,8 @@ Generate common labels.
 {{- define "wproofreader.labels" -}}
 helm.sh/chart: {{ include "wproofreader.chart" . }}
 {{ include "wproofreader.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- if (include "wproofreader.imageTag" .) }}
+app.kubernetes.io/version: {{ include "wproofreader.imageTag" . | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
@@ -141,8 +141,16 @@ Returns default web port as an integer.
 {{- end }}
 
 {{/*
-Resolved db-manager image. db-manager is released per WProofreader version and carries that
-version's schema migrations; an empty tag falls back to the chart appVersion.
+Resolved WProofreader image tag. An empty value falls back to the chart appVersion.
+*/}}
+{{- define "wproofreader.imageTag" -}}
+{{- .Values.image.tag | default .Chart.AppVersion -}}
+{{- end }}
+
+{{/*
+Resolved db-manager image. The tag is coupled to the WProofreader version: it defaults to
+the chart appVersion because db-manager is released per WProofreader version and carries
+that version's schema migrations.
 */}}
 {{- define "wproofreader.dbManagerImage" -}}
 {{- printf "%s:%s" .Values.databaseProvisioning.image.repository (.Values.databaseProvisioning.image.tag | default .Chart.AppVersion) -}}

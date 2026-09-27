@@ -78,12 +78,10 @@ dictionaries:
 image:
   # format <repository>/<image name> (no tag!)
   repository: webspellchecker/wproofreader
-  # options: IfNotPresent, Never, Always. Always re-checks the registry on every Pod
-  # start, so a floating tag such as latest picks up new releases.
-  pullPolicy: Always
-  # image tag; latest follows the newest release. Set a version (e.g. 6.16.0.0) to pin it;
-  # an empty value uses the chart appVersion.
-  tag: latest
+  # options: IfNotPresent, Never, Always
+  pullPolicy: IfNotPresent
+  # overrides the image tag; empty uses the chart appVersion so releases are reproducible.
+  tag: ""
 
 # Readiness Options allows customizing the default readiness probe
 readinessProbeOptions: {}
@@ -244,12 +242,11 @@ databaseProvisioning:
   image:
     # db-manager image repository (no tag)
     repository: webspellchecker/db-manager
-    # image tag; latest follows the newest release. db-manager is released per WProofreader
-    # version, so when you pin image.tag for WProofreader, pin this to the same version.
-    # An empty value uses the chart appVersion.
-    tag: latest
+    # image tag; empty uses the chart appVersion. db-manager is released per WProofreader
+    # version, so keep this aligned with image.tag when overriding either value.
+    tag: ""
     # options: IfNotPresent, Never, Always
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
 
   # privileged user db-manager connects as to bootstrap the database
   rootUser: root
