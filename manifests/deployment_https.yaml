@@ -6,7 +6,7 @@ metadata:
     helm.sh/chart: wproofreader-1.4.0
     app.kubernetes.io/name: wproofreader
     app.kubernetes.io/instance: wproofreader-app
-    app.kubernetes.io/version: "6.16.0.0"
+    app.kubernetes.io/version: "6.18.1.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
@@ -34,7 +34,7 @@ spec:
         - name: wproofreader
           securityContext:
             {}
-          image: "webspellchecker/wproofreader:6.16.0.0"
+          image: "webspellchecker/wproofreader:6.18.1.0"
           imagePullPolicy: IfNotPresent
           ports:
             - name: container-port
