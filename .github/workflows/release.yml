@@ -1,0 +1,54 @@
+name: Release chart
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "wproofreader/**"
+      - "cr.yaml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chart-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v5
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          cache: false
+
+      - name: Install validation tools
+        run: |
+          go install github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Validate chart
+        run: make check
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Publish chart
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: .
+          config: cr.yaml
+          skip_existing: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}

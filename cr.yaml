@@ -1,0 +1,4 @@
+# chart-releaser configuration for the single chart in this repository.
+owner: WebSpellChecker
+git-repo: wproofreader-helm
+release-name-template: "v{{ .Version }}"

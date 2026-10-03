@@ -1,0 +1,12 @@
+# chart-testing configuration. See https://github.com/helm/chart-testing#configuration
+target-branch: main
+# Use chart-dirs, not an explicit charts list: ct skips the version check for listed
+# charts. With chart-dirs, ct lints the chart only when it changed against the target
+# branch. `make check` validates every scenario in ci/ on every run.
+chart-dirs:
+  - .
+# The maintainer is a team with an email address, not a GitHub user.
+validate-maintainers: false
+# CI disables this check only while the repository has no v<version> release tag.
+check-version-increment: true
+lint-conf: lintconf.yaml

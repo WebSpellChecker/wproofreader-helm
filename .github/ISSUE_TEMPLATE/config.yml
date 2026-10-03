@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Product support
+    url: https://webspellchecker.com/contact-us/
+    about: Ask for help with WProofreader products.
+  - name: Security report
+    url: https://github.com/WebSpellChecker/wproofreader-helm/security/advisories/new
+    about: Report a suspected vulnerability privately.
