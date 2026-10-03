@@ -1,0 +1,12 @@
+# Known false positives in the history, one fingerprint per finding:
+# - generic-api-key: checksum/secrets annotations (SHA-256 hashes) in example manifests.
+# - hashicorp-tf-password: change-me placeholders in the example db-credentials Secret.
+eba50109360a28a644fd93e53c560019d1f1c8f5:manifests/db-credentials-secret.yaml:hashicorp-tf-password:29
+eba50109360a28a644fd93e53c560019d1f1c8f5:manifests/db-credentials-secret.yaml:hashicorp-tf-password:31
+5d313f58ed2a929153d63e02837c8ab563632814:manifests/db-credentials-secret.yaml:hashicorp-tf-password:29
+5d313f58ed2a929153d63e02837c8ab563632814:manifests/db-credentials-secret.yaml:hashicorp-tf-password:31
+c97d083172372cd1ad664a5242f380db22448f6f:manifests/deployment_http.yaml:generic-api-key:25
+c97d083172372cd1ad664a5242f380db22448f6f:manifests/deployment_https.yaml:generic-api-key:25
+6b9b498eb79513f3dead9659932c4f7a3fe67b34:manifests/deployment_https.yaml:generic-api-key:23
+6b9b498eb79513f3dead9659932c4f7a3fe67b34:manifests/deployment_http.yaml:generic-api-key:25
+3cefc55aa839bd467b4cdc2a03f463e3418682c4:manifests/deployment.yaml:generic-api-key:23

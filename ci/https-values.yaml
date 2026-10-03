@@ -1,0 +1,2 @@
+# WProofreader Server processes HTTPS requests only.
+useHTTPS: true

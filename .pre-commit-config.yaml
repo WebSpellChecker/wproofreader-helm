@@ -1,0 +1,9 @@
+# Local secret-scanning gate. One-time setup per clone:
+#   pip install pre-commit   # or: brew install pre-commit
+#   pre-commit install
+# Then Gitleaks scans staged changes automatically on every `git commit`.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.29.1
+    hooks:
+      - id: gitleaks
