@@ -42,7 +42,8 @@ Run all commands from the repository root.
 
 Bump `wproofreader/Chart.yaml` for a change to the packaged chart.
 Use Semantic Versioning.
-Update `CHANGELOG.md` and the `artifacthub.io/changes` annotation in the same pull request.
+Update `CHANGELOG.md` and add or update the `artifacthub.io/changes` annotation in `Chart.yaml`
+in the same pull request.
 A documentation-only change outside `wproofreader/` does not need a chart version bump.
 
 To update `CHANGELOG.md` from the Conventional Commits, run:
