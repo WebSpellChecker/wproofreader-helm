@@ -13,7 +13,8 @@ The chart follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
 - **database:** TLS for the db-manager connection to MySQL (`databaseProvisioning.tls`).
   Needs db-manager 6.18.0.0 or later.
 - **database:** The Admin-panel database user `app_service`
-  (`databaseProvisioning.adminPanelUsername`, `adminPanelPassword`, Secret key `admin-panel-password`).
+  (`databaseProvisioning.adminPanelUsername`, `adminPanelPassword`,
+  Secret key `admin-panel-password`).
 - **license:** Use a pre-existing Secret for the license ticket (`licenseExistingSecret`).
 
 ### Changed
