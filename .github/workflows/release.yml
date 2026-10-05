@@ -1,27 +1,50 @@
 name: Release chart
 
+# release-please keeps one release pull request open. It updates the chart version in
+# wproofreader/Chart.yaml and wproofreader/CHANGELOG.md from the Conventional Commits on main.
+# The release pull request is reviewed and approved like any other pull request.
+# When it is merged, release-please creates the v<version> tag and the GitHub Release,
+# and the publish job attaches the chart package and updates the Helm repository index.
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - "wproofreader/**"
-      - "cr.yaml"
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: chart-release
   cancel-in-progress: false
 
 jobs:
-  release:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      release_created: ${{ steps.release.outputs['wproofreader--release_created'] }}
+      tag_name: ${{ steps.release.outputs['wproofreader--tag_name'] }}
+    steps:
+      - name: Update the release pull request or create the release
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
           fetch-depth: 0
 
       - uses: azure/setup-helm@v5
@@ -39,16 +62,22 @@ jobs:
       - name: Validate chart
         run: make check
 
-      - name: Configure Git
+      - name: Package the chart and attach it to the release
         run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          helm package wproofreader --destination dist
+          gh release upload "$TAG" dist/*.tgz --clobber
 
-      - name: Publish chart
-        uses: helm/chart-releaser-action@v1.7.0
-        with:
-          charts_dir: .
-          config: cr.yaml
-          skip_existing: true
-        env:
-          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add the package to the Helm repository index on gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git worktree add ../gh-pages origin/gh-pages
+          helm repo index dist \
+            --url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}" \
+            --merge ../gh-pages/index.yaml
+          cp dist/index.yaml ../gh-pages/index.yaml
+          cd ../gh-pages
+          git add index.yaml
+          git commit -m "chore: add ${TAG} to the Helm repository index"
+          git push origin HEAD:gh-pages
