@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  wproofreader:
+  - apiVersion: v2
+    appVersion: 6.18.1.0
+    created: "2026-10-05T11:00:53.818612+02:00"
+    description: A Helm chart for deploying webspellchecker/wproofreader in Kubernetes
+    digest: c3fe58dc3f39e4f1fe7661de3836f8a9d660b342ee259aa75660c9f68036c9ed
+    name: wproofreader
+    type: application
+    urls:
+    - https://github.com/WebSpellChecker/wproofreader-helm/releases/download/v1.4.0/wproofreader-1.4.0.tgz
+    version: 1.4.0
+generated: "2026-10-05T11:00:53.817687+02:00"
