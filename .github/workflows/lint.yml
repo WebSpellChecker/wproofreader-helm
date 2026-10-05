@@ -14,6 +14,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  commit-messages:
+    # Every commit of the branch reaches main with the merge commit, and release-please
+    # reads each subject. Merge commits are skipped.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check the commit subjects
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: ./scripts/check-commit-messages.sh "$BASE_SHA" "$HEAD_SHA"
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -51,10 +69,4 @@ jobs:
       - name: ct lint
         env:
           TARGET_BRANCH: ${{ github.base_ref || github.event.repository.default_branch }}
-        run: |
-          if git tag --list 'v[0-9]*' | grep -q .; then
-            ct lint --config ct.yaml --target-branch "$TARGET_BRANCH"
-          else
-            ct lint --config ct.yaml --target-branch "$TARGET_BRANCH" \
-              --check-version-increment=false
-          fi
+        run: ct lint --config ct.yaml --target-branch "$TARGET_BRANCH"

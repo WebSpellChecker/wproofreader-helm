@@ -6,8 +6,6 @@
 
 # Chart packaging and release
 dist/
-.cr-index/
-.cr-release-packages/
 
 # Copies of ci/*-values.yaml that the lint workflow makes for chart-testing
 wproofreader/ci/
