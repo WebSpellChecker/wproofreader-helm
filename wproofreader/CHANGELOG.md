@@ -1,7 +1,6 @@
 # Changelog
 
-## [1.4.0](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.3.1...v1.4.0) (2026-09-28)
-
+## [1.4.0](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.3.1...v1.4.0) - 2026-09-28
 
 ### Features
 
@@ -10,8 +9,7 @@
 * **license:** use a pre-existing Secret for the license ticket (`licenseExistingSecret`) ([#10](https://github.com/WebSpellChecker/wproofreader-helm/issues/10)) ([311a63f](https://github.com/WebSpellChecker/wproofreader-helm/commit/311a63fdcdc7855906ab954b797d3b4be9ddcb18))
 * WProofreader Server 6.18.1.0 (`appVersion`, was 6.11.0.0); the db-manager image uses the same version ([#12](https://github.com/WebSpellChecker/wproofreader-helm/issues/12)) ([4d675f7](https://github.com/WebSpellChecker/wproofreader-helm/commit/4d675f79c7fc746d13e7929f113345c2bb87f26a))
 
-## [1.3.1](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.3.0...v1.3.1) (2026-04-01)
-
+## [1.3.1](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.3.0...v1.3.1) - 2026-04-01
 
 ### Features
 
@@ -21,8 +19,7 @@
 
 * **templates:** fix double slashes in paths when `virtualDir` is set to root ([dcd8af9](https://github.com/WebSpellChecker/wproofreader-helm/commit/dcd8af9d20d887030c5ae9f40336768bd590dea9))
 
-## [1.3.0](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.2.0...v1.3.0) (2025-07-21)
-
+## [1.3.0](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.2.0...v1.3.0) - 2025-07-21
 
 ### ⚠ BREAKING CHANGES
 
