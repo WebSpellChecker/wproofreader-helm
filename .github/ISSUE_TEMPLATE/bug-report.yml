@@ -1,0 +1,62 @@
+name: Chart bug
+description: Report a reproducible problem in the WProofreader Helm chart
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Remove credentials, license data, and customer data before you submit this form.
+
+  - type: input
+    id: chart-version
+    attributes:
+      label: Chart version
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: platform-version
+    attributes:
+      label: Kubernetes and Helm versions
+      placeholder: Kubernetes 1.30.4, Helm 3.15.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: State what happened and what you expected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the command and a minimal values file with secrets removed.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: Include the complete error and the smallest useful manifest or log excerpt.
+      render: text
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the open issues for the same problem.
+          required: true
+        - label: I removed secrets and customer data from this report.
+          required: true

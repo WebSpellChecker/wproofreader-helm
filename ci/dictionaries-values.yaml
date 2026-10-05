@@ -1,0 +1,3 @@
+# Custom user dictionaries on a PersistentVolumeClaim that the chart creates.
+dictionaries:
+  enabled: true

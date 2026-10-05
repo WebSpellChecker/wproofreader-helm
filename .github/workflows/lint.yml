@@ -1,0 +1,60 @@
+name: Chart validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chart-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # ct compares against the target branch
+
+      - uses: azure/setup-helm@v5
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"  # chart-testing runs yamllint and yamale with Python
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.x"
+          cache: false
+
+      - uses: helm/chart-testing-action@v2.8.0
+
+      - name: Install manifest validator
+        run: |
+          go install github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Validate chart scenarios
+        run: make check
+
+      - name: Copy the ci scenarios into the chart for chart-testing
+        # The scenarios live outside the chart, so a scenario change does not need a
+        # chart version bump. The copies are git-ignored.
+        run: mkdir -p wproofreader/ci && cp ci/*-values.yaml wproofreader/ci/
+
+      - name: ct lint
+        env:
+          TARGET_BRANCH: ${{ github.base_ref || github.event.repository.default_branch }}
+        run: |
+          if git tag --list 'v[0-9]*' | grep -q .; then
+            ct lint --config ct.yaml --target-branch "$TARGET_BRANCH"
+          else
+            ct lint --config ct.yaml --target-branch "$TARGET_BRANCH" \
+              --check-version-increment=false
+          fi
