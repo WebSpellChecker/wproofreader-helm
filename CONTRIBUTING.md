@@ -82,30 +82,45 @@ because the provisioning Job uses it.
 
 ## Release a new chart version
 
-Releases use [release-please](https://github.com/googleapis/release-please).
+Releases use a release pull request.
 No workflow pushes commits to `main`, so every change to `main` has an approved pull request.
+The release workflow uses [git-cliff](https://git-cliff.org/) with `cliff.toml`.
+It reads the commits that change `wproofreader/` since the last `v<version>` tag.
+It skips merge commits, so each commit of a branch is counted one time.
 
 1. Merge your pull requests into `main` as usual.
-2. The release workflow opens or updates one pull request with the title `chore: release <version>`.
+2. The release workflow opens or updates one pull request with the title
+   `chore(release): <version>`, from the `release/next` branch.
    It changes the chart `version` in `wproofreader/Chart.yaml` and adds the release notes
    to `wproofreader/CHANGELOG.md`.
    Changes of the types `docs`, `chore`, `ci`, `test`, `build`, and `style` do not open a release
    pull request.
 3. Review the release pull request.
    Make sure that the version and the release notes are correct.
-   To change the notes, edit the commit messages of the source pull requests,
-   or edit the release pull request.
+   Do not edit the release pull request: the workflow writes it again after each merge to `main`.
+   To change the notes, change the commits in a new pull request.
 4. Approve and merge the release pull request when you want to publish the release.
 5. The release workflow then does these steps:
-   - It creates the `v<version>` tag and the GitHub Release with the release notes.
-   - It runs `make check`, packages the chart,
-     and attaches `wproofreader-<version>.tgz` to the release.
+   - It runs `make check`.
+   - It creates the `v<version>` tag and the GitHub Release.
+     The release notes are the section of the version in `wproofreader/CHANGELOG.md`.
+   - It packages the chart and attaches `wproofreader-<version>.tgz` to the release.
    - It adds the package to `index.yaml` on the `gh-pages` branch.
 6. Make sure that the workflow run is successful,
    and that the GitHub Release has the `.tgz` file.
+   If a step fails, fix the cause and select **Re-run failed jobs** on the run.
+   The publish steps skip work that is already done.
 
 To release several changes together, wait with step 4.
 The release pull request collects all changes until you merge it.
+
+To select the version yourself, for example 1.2.3 instead of 1.1.0,
+run the **Release chart** workflow manually from the **Actions** tab
+with the version in the **version** field.
+The version must be higher than the last release.
+The workflow sets this version in the release pull request.
+The next merge to `main` selects the version from the commits again,
+so run the workflow again if necessary.
 
 Do not move or delete a published release tag.
 To correct a release, publish a new version.

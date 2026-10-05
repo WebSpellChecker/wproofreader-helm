@@ -7,6 +7,6 @@ chart-dirs:
   - .
 # The maintainer is a team with an email address, not a GitHub user.
 validate-maintainers: false
-# The release pull request of release-please bumps the chart version, not each change.
+# The release pull request bumps the chart version, not each change.
 check-version-increment: false
 lint-conf: lintconf.yaml

@@ -1,0 +1,67 @@
+# git-cliff configuration for the release pull request and the changelog.
+# The release workflow (.github/workflows/release.yml) runs git-cliff on the commits that
+# change wproofreader/ since the last v<version> tag:
+#   git-cliff --include-path 'wproofreader/**' --bumped-version          # next version
+#   git-cliff --include-path 'wproofreader/**' --unreleased --tag vX.Y.Z  # release notes
+# Pull requests are merged with a merge commit. Merge commits are skipped, so each commit
+# of a branch counts one time.
+
+[changelog]
+header = """
+# Changelog
+
+"""
+body = """
+{% set repo = "https://github.com/WebSpellChecker/wproofreader-helm" -%}
+{% if version -%}
+{% if previous.version -%}
+## [{{ version | trim_start_matches(pat="v") }}]({{ repo }}/compare/{{ previous.version }}...{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [{{ version | trim_start_matches(pat="v") }}]({{ repo }}/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+{% endif -%}
+{% else -%}
+## Unreleased
+{% endif -%}
+{% set breaking = commits | filter(attribute="breaking", value=true) -%}
+{% if breaking | length > 0 %}
+### ⚠ BREAKING CHANGES
+
+{% for commit in breaking -%}
+* {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.breaking_description }}
+{% endfor -%}
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+
+{% for commit in commits -%}
+* {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message }} ([{{ commit.id | truncate(length=7, end="") }}]({{ repo }}/commit/{{ commit.id }}))
+{% endfor -%}
+{% endfor %}
+"""
+trim = false
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = true
+filter_commits = true
+tag_pattern = "v[0-9].*"
+sort_commits = "oldest"
+# The <!-- n --> prefixes set the order of the sections; the template strips them.
+commit_parsers = [
+  { message = "^Merge (pull request|branch)", skip = true },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^feat", group = "<!-- 0 -->Features" },
+  { message = "^fix", group = "<!-- 1 -->Bug fixes" },
+  { message = "^perf", group = "<!-- 2 -->Performance" },
+  { message = "^refactor", group = "<!-- 3 -->Refactoring" },
+  { message = "^revert", group = "<!-- 4 -->Reverts" },
+  { message = "^(docs|chore|ci|test|build|style)", skip = true },
+]
+
+[bump]
+# 1.x versions: feat -> minor, fix/perf/refactor/revert -> patch, breaking change -> major.
+features_always_bump_minor = true
+breaking_always_bump_major = true

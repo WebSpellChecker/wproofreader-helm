@@ -15,8 +15,8 @@ concurrency:
 
 jobs:
   commit-messages:
-    # Every commit of the branch reaches main with the merge commit, and release-please
-    # reads each subject. Merge commits are skipped.
+    # Every commit of the branch reaches main with the merge commit, and the release
+    # workflow reads each subject. Merge commits are skipped.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5

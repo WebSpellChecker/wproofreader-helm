@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Check that every commit in a range has a Conventional Commits subject.
-# release-please reads these subjects on main to select the next version and to write
-# the changelog. Pull requests are merged with a merge commit, so every commit of the
+# The release workflow reads these subjects on main (with git-cliff) to select the next
+# version and to write the changelog. Pull requests are merged with a merge commit, so every commit of the
 # branch reaches main. Merge commits are skipped.
 #
 # Usage: scripts/check-commit-messages.sh [<base>] [<head>]
