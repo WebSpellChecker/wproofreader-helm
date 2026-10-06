@@ -1,99 +1,291 @@
 name: Release chart
 
-# Release pull request flow. No step pushes commits to main.
-#
-# On each push to main, one of two paths runs:
-# - Prepare: the chart version in wproofreader/Chart.yaml already has a v<version> tag.
-#   git-cliff reads the Conventional Commits that change wproofreader/ since that tag, selects
-#   the next version, and the workflow opens or updates the pull request
-#   "chore(release): <version>" (branch release/next). It changes only the chart version
-#   and wproofreader/CHANGELOG.md. The pull request is reviewed and approved like any other.
-# - Publish: the chart version has no tag yet, so the release pull request was merged.
-#   The workflow validates the chart, creates the tag and the GitHub Release, attaches the
-#   chart package, and adds it to the Helm repository index on gh-pages.
+# Release flow (see "Release a new chart version" in CONTRIBUTING.md):
+# - Pull requests go to development and are merged with "Squash and merge".
+# - The pull request from development to main is the release.
+#   prepare: on each update of that pull request, git-cliff selects the next version from the
+#   Conventional Commits that change wproofreader/ since the last v<version> tag. The job commits
+#   "chore(release): <version>" with the chart version and the changelog to development,
+#   validates the chart, and sets the commit status "release-ready" on that commit.
+# - publish: the merge of that pull request into main (a merge commit) creates the tag, the
+#   GitHub Release with the chart package, and the Helm repository index on gh-pages. Then it
+#   brings development up to main. A push to main that is not such a merge publishes nothing.
 #   Each publish step skips work that is already done, so a failed run can be re-run.
-#
-# To select the version yourself, run the workflow manually with the version input.
 on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
   push:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Version for the release pull request, for example 1.2.3. Leave empty to select it from the commits.
-        required: false
-        type: string
 
 permissions:
-  contents: write
-  pull-requests: write
-
-concurrency:
-  group: chart-release
-  cancel-in-progress: false
+  contents: read
 
 env:
   CHART: wproofreader
   GIT_CLIFF_VERSION: "2.14.2"
 
 jobs:
-  release:
+  prepare:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.ref == 'development' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    permissions:
+      contents: write       # commit the release files to development
+      statuses: write       # the release-ready status
+      pull-requests: write  # the title and the description of the release pull request
+    concurrency:
+      group: release-prepare-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: development
           fetch-depth: 0
 
-      - name: Read the chart version
+      - name: Check the state of development
         id: state
-        env:
-          REQUESTED: ${{ inputs.version }}
         run: |
-          version=$(awk '/^version:/ {print $2; exit}' "${CHART}/Chart.yaml")
-          tag_commit=$(git rev-parse --quiet --verify "refs/tags/v${version}^{commit}" || true)
-          # Publish when the version has no tag yet (the release pull request was merged),
-          # or when its tag is on this commit (a re-run of a publish run).
-          if [ -z "${tag_commit}" ]; then
-            released=false
-          elif [ "${tag_commit}" = "${GITHUB_SHA}" ] && [ -z "${REQUESTED}" ]; then
-            released=false
+          # The commit of the event, or the release commit that an earlier run of this event added.
+          if [ "$(git rev-parse HEAD)" = "${HEAD_SHA}" ]; then
+            current=true
+          elif [ "$(git rev-parse HEAD~1)" = "${HEAD_SHA}" ] \
+            && git log -1 --format=%s HEAD | grep -q '^chore(release)'; then
+            current=true
           else
-            released=true
+            current=false
+            echo "development moved after this event; the run of the newer commit prepares the release."
           fi
-          echo "Chart version ${version}, tag commit ${tag_commit:-none}, released: ${released}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "released=${released}" >> "$GITHUB_OUTPUT"
+          echo "current=${current}" >> "$GITHUB_OUTPUT"
+          [ "${current}" = true ] || exit 0
+          # The publish job brings each release into development. Without it, git-cliff would
+          # count the commits of the last release again.
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            echo "error: development does not contain main. Re-run the publish job of the last release," >&2
+            echo "or merge main into development with a merge commit." >&2
+            exit 1
+          fi
 
-      # Publish path
+      - name: Install git-cliff
+        if: steps.state.outputs.current == 'true'
+        run: pip install --quiet "git-cliff==${GIT_CLIFF_VERSION}"
+
+      - name: Set the chart version and write the changelog
+        id: prepare
+        if: steps.state.outputs.current == 'true'
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD)
+          last=${last_tag#v}
+          next=$(git-cliff --include-path "${CHART}/**" --bumped-version 2>/dev/null)
+          next=${next#v}
+          if ! [[ "${next}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "error: git-cliff returned the version '${next}'" >&2
+            exit 1
+          fi
+          if [ "${next}" = "${last}" ]; then
+            # Nothing to release: the chart version and the changelog stay at the last release.
+            version=${last}
+            result=none
+            : > "${RUNNER_TEMP}/section.md"
+          else
+            version=${next}
+            result=${next}
+            git-cliff --include-path "${CHART}/**" --unreleased --tag "v${next}" --strip all \
+              2>/dev/null > "${RUNNER_TEMP}/section.md"
+          fi
+          # Remove each section of a version above the last release, so that a new run replaces
+          # the section of the unreleased version. Keep the date of a section for the same version.
+          python3 - "${CHART}/CHANGELOG.md" "${RUNNER_TEMP}/section.md" "${last}" "${version}" \
+            > "${RUNNER_TEMP}/CHANGELOG.md" <<'EOF'
+          import re, sys
+          path, section_path, last, version = sys.argv[1:]
+          key = lambda v: tuple(int(x) for x in v.split("."))
+          heading = re.compile(r"^## \[(\d+\.\d+\.\d+)\]\([^)]*\) - ([0-9-]+)$|^## Unreleased$")
+          out, keep, old_date = [], True, ""
+          for line in open(path).read().splitlines(keepends=True):
+              m = heading.match(line.rstrip("\n"))
+              if m:
+                  if m.group(1) == version and version != last:
+                      old_date = m.group(2)
+                  keep = m.group(1) is not None and key(m.group(1)) <= key(last)
+              if keep:
+                  out.append(line)
+          section = open(section_path).read().strip("\n")
+          if section:
+              if old_date:
+                  section = re.sub(r"(?m)^(## \[[^]]+\]\([^)]*\)) - [0-9-]+$", r"\1 - " + old_date, section, count=1)
+              at = next((i for i, line in enumerate(out) if line.startswith("## ")), len(out))
+              out = out[:at] + [section + "\n\n"] + out[at:]
+          sys.stdout.write(re.sub(r"\n{3,}", "\n\n", "".join(out)).rstrip("\n") + "\n")
+          EOF
+          cp "${RUNNER_TEMP}/CHANGELOG.md" "${CHART}/CHANGELOG.md"
+          sed -i "s/^version: .*/version: ${version}/" "${CHART}/Chart.yaml"
+          echo "Last release ${last}; to release: ${result}"
+          echo "last=${last}" >> "$GITHUB_OUTPUT"
+          echo "result=${result}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit the release files to development
+        id: commit
+        if: steps.state.outputs.current == 'true'
+        env:
+          RESULT: ${{ steps.prepare.outputs.result }}
+        run: |
+          if git diff --quiet; then
+            echo "The release files are up to date."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            if [ "${RESULT}" = none ]; then
+              git commit --quiet --all -m "chore(release): no chart release"
+            else
+              git commit --quiet --all -m "chore(release): ${RESULT}"
+            fi
+            git push --quiet origin HEAD:refs/heads/development
+            echo "Committed $(git log -1 --format='%h %s')"
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: azure/setup-helm@v5
-        if: steps.state.outputs.released == 'false'
+        if: steps.state.outputs.current == 'true'
 
       - uses: actions/setup-go@v7
-        if: steps.state.outputs.released == 'false'
+        if: steps.state.outputs.current == 'true'
         with:
           go-version: "1.26.x"
           cache: false
 
       - name: Validate the chart
-        if: steps.state.outputs.released == 'false'
+        if: steps.state.outputs.current == 'true'
         run: |
           go install github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
-          export PATH="$(go env GOPATH)/bin:${PATH}"
+          gopath=$(go env GOPATH)
+          export PATH="${gopath}/bin:${PATH}"
+          make check
+
+      - name: Update the title and the description of the release pull request
+        if: steps.state.outputs.current == 'true'
+        env:
+          RESULT: ${{ steps.prepare.outputs.result }}
+          LAST: ${{ steps.prepare.outputs.last }}
+        run: |
+          body="${RUNNER_TEMP}/body.md"
+          if [ "${RESULT}" = none ]; then
+            title="chore: bring the changes of development to main (no chart release)"
+            printf '%s\n' "No change of the packaged chart since v${LAST}: the merge publishes no release." > "${body}"
+          else
+            title="chore(release): ${RESULT}"
+            awk -v heading="## [${RESULT}]" \
+              'index($0, heading) == 1 {found = 1; next} found && /^## /{exit} found' \
+              "${CHART}/CHANGELOG.md" | sed '/./,$!d' > "${body}"
+            printf '\n%s\n' "Merge with a merge commit to publish ${RESULT}." >> "${body}"
+          fi
+          gh pr edit "${PR_NUMBER}" --title "${title}" --body-file "${body}"
+
+      - name: Set the release-ready status
+        if: always() && steps.state.outputs.current == 'true'
+        env:
+          RESULT: ${{ steps.prepare.outputs.result }}
+          SHA: ${{ steps.commit.outputs.sha || github.event.pull_request.head.sha }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          if [ "${OUTCOME}" != success ]; then
+            state=failure
+            description="Preparing the release failed; see the workflow run"
+          elif [ "${RESULT}" = none ]; then
+            state=success
+            description="No chart change: the merge publishes no release"
+          else
+            state=success
+            description="Release ${RESULT} is prepared and validated"
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state="${state}" -f context=release-ready -f description="${description}" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write  # the tag, the release, gh-pages, and development
+    concurrency:
+      group: chart-publish
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Find the release pull request of this commit
+        id: release
+        run: |
+          pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq \
+            ".[] | select(.merged_at != null and .base.ref == \"main\" and .head.ref == \"development\"
+              and .head.repo.full_name == \"${GITHUB_REPOSITORY}\" and .merge_commit_sha == \"${GITHUB_SHA}\") | .number" \
+            | head -n 1)
+          if [ -z "${pr}" ]; then
+            echo "This push is not the merge of a pull request from development: nothing to publish."
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Main must have the tree that the pull request checked (its second parent).
+          if [ "$(git rev-parse "${GITHUB_SHA}^{tree}")" != "$(git rev-parse "${GITHUB_SHA}^2^{tree}")" ]; then
+            echo "error: the merge commit differs from the head of pull request #${pr}" >&2
+            exit 1
+          fi
+          version=$(awk '/^version:/ {print $2; exit}' "${CHART}/Chart.yaml")
+          tag_commit=$(git rev-parse --quiet --verify "refs/tags/v${version}^{commit}" || true)
+          if [ -z "${tag_commit}" ] || [ "${tag_commit}" = "${GITHUB_SHA}" ]; then
+            publish=true
+            echo "Pull request #${pr}: publish ${version}"
+          else
+            publish=false
+            echo "Pull request #${pr}: v${version} is already released; nothing to publish."
+          fi
+          {
+            echo "merged=true"
+            echo "publish=${publish}"
+            echo "version=${version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: azure/setup-helm@v5
+        if: steps.release.outputs.publish == 'true'
+
+      - uses: actions/setup-go@v7
+        if: steps.release.outputs.publish == 'true'
+        with:
+          go-version: "1.26.x"
+          cache: false
+
+      - name: Validate the chart
+        if: steps.release.outputs.publish == 'true'
+        run: |
+          go install github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
+          gopath=$(go env GOPATH)
+          export PATH="${gopath}/bin:${PATH}"
           make check
 
       - name: Create the tag and the GitHub Release
-        if: steps.state.outputs.released == 'false'
+        if: steps.release.outputs.publish == 'true'
         env:
-          VERSION: ${{ steps.state.outputs.version }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           # Release notes: the section of this version in the changelog, without its heading.
+          notes="${RUNNER_TEMP}/release-notes.md"
           awk -v heading="## [${VERSION}]" \
-            'index($0, heading) == 1 {found = 1; next} found && /^## / {exit} found' \
-            "${CHART}/CHANGELOG.md" | sed '/./,$!d' > release-notes.md
-          if [ ! -s release-notes.md ]; then
+            'index($0, heading) == 1 {found = 1; next} found && /^## /{exit} found' \
+            "${CHART}/CHANGELOG.md" | sed '/./,$!d' > "${notes}"
+          if [ ! -s "${notes}" ]; then
             echo "error: ${CHART}/CHANGELOG.md has no section for ${VERSION}" >&2
             exit 1
           fi
@@ -102,22 +294,31 @@ jobs:
             git push origin "v${VERSION}"
           fi
           if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
-            gh release create "v${VERSION}" --title "v${VERSION}" --notes-file release-notes.md --verify-tag
+            gh release create "v${VERSION}" --title "v${VERSION}" --notes-file "${notes}" --verify-tag
           fi
 
-      - name: Package the chart and attach it to the release
-        if: steps.state.outputs.released == 'false'
+      - name: Attach the chart package to the release
+        if: steps.release.outputs.publish == 'true'
         env:
-          VERSION: ${{ steps.state.outputs.version }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          helm package "${CHART}" --destination dist
-          gh release upload "v${VERSION}" dist/*.tgz --clobber
+          package="${CHART}-${VERSION}.tgz"
+          mkdir -p dist
+          # helm package is not byte-reproducible: a re-run uses the package that is already
+          # published instead of replacing it.
+          if gh release view "v${VERSION}" --json assets --jq '.assets[].name' | grep -qx "${package}"; then
+            gh release download "v${VERSION}" --pattern "${package}" --dir dist --clobber
+            echo "The release already has ${package}; the index uses it."
+          else
+            helm package "${CHART}" --destination dist
+            gh release upload "v${VERSION}" "dist/${package}"
+          fi
+          sha256sum "dist/${package}"
 
       - name: Add the package to the Helm repository index on gh-pages
-        if: steps.state.outputs.released == 'false'
+        if: steps.release.outputs.publish == 'true'
         env:
-          VERSION: ${{ steps.state.outputs.version }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -136,59 +337,49 @@ jobs:
             git push origin HEAD:gh-pages
           fi
 
-      # Prepare path
-
-      - name: Install git-cliff
-        if: steps.state.outputs.released == 'true'
-        run: pip install --quiet "git-cliff==${GIT_CLIFF_VERSION}"
-
-      - name: Select the next version and update the chart version and the changelog
-        id: next
-        if: steps.state.outputs.released == 'true'
+      - name: Check that users can install the release
+        if: steps.release.outputs.publish == 'true'
         env:
-          CURRENT: ${{ steps.state.outputs.version }}
-          REQUESTED: ${{ inputs.version }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          if [ -n "${REQUESTED}" ]; then
-            if ! [[ "${REQUESTED}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "error: the version input must look like 1.2.3" >&2
+          curl -fsSL -o /dev/null \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${CHART}-${VERSION}.tgz"
+          owner=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          url="https://${owner}.github.io/${GITHUB_REPOSITORY#*/}/"
+          # GitHub Pages serves the new index.yaml some time after the push.
+          for attempt in $(seq 1 20); do
+            if helm repo add release-check "${url}" --force-update >/dev/null 2>&1 \
+              && helm search repo "release-check/${CHART}" --version "${VERSION}" | grep -q "${VERSION}"; then
+              echo "helm search finds ${CHART} ${VERSION} in ${url}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${VERSION} is not in ${url}index.yaml yet"
+            sleep 30
+          done
+          echo "error: ${url}index.yaml does not list ${VERSION}" >&2
+          exit 1
+
+      - name: Bring development up to main
+        if: steps.release.outputs.merged == 'true'
+        run: |
+          # Never a force push: a fast-forward, or a merge commit when development has new commits.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --quiet origin refs/heads/development
+          development=$(git rev-parse FETCH_HEAD)
+          if git merge-base --is-ancestor "${GITHUB_SHA}" "${development}"; then
+            echo "development already contains ${GITHUB_SHA}."
+          elif git merge-base --is-ancestor "${development}" "${GITHUB_SHA}"; then
+            git push --quiet origin "${GITHUB_SHA}:refs/heads/development"
+            echo "development fast-forwarded to ${GITHUB_SHA}."
+          else
+            git checkout --quiet --detach "${development}"
+            if ! git merge --quiet --no-ff --no-edit -m "Merge branch 'main' into development" "${GITHUB_SHA}"; then
+              git merge --abort || true
+              echo "error: merging main into development has a conflict. Merge main into development" >&2
+              echo "on a branch, resolve the conflict, merge that branch with a merge commit, and re-run this job." >&2
               exit 1
             fi
-            next="${REQUESTED}"
-          else
-            next=$(git-cliff --include-path "${CHART}/**" --bumped-version 2>/dev/null)
-            next="${next#v}"
+            git push --quiet origin HEAD:refs/heads/development
+            echo "Merged main into development: $(git rev-parse --short HEAD)."
           fi
-          if [ "${next}" = "${CURRENT}" ]; then
-            echo "No changes for a release since v${CURRENT}."
-            echo "create=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "$(printf '%s\n%s\n' "${CURRENT}" "${next}" | sort -V | tail -n 1)" != "${next}" ]; then
-            echo "error: ${next} is not higher than the released ${CURRENT}" >&2
-            exit 1
-          fi
-          sed -i "s/^version: .*/version: ${next}/" "${CHART}/Chart.yaml"
-          git-cliff --include-path "${CHART}/**" --unreleased --tag "v${next}" \
-            --prepend "${CHART}/CHANGELOG.md" 2>/dev/null
-          cat -s "${CHART}/CHANGELOG.md" > changelog.tmp
-          mv changelog.tmp "${CHART}/CHANGELOG.md"
-          git-cliff --include-path "${CHART}/**" --unreleased --tag "v${next}" \
-            --strip all 2>/dev/null | cat -s > pr-body.md
-          echo "Next version: ${next}"
-          echo "version=${next}" >> "$GITHUB_OUTPUT"
-          echo "create=true" >> "$GITHUB_OUTPUT"
-
-      - name: Open or update the release pull request
-        if: steps.next.outputs.create == 'true'
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
-        with:
-          branch: release/next
-          base: main
-          title: "chore(release): ${{ steps.next.outputs.version }}"
-          commit-message: "chore(release): ${{ steps.next.outputs.version }}"
-          body-path: pr-body.md
-          add-paths: |
-            ${{ env.CHART }}/Chart.yaml
-            ${{ env.CHART }}/CHANGELOG.md
-          delete-branch: true

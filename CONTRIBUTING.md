@@ -18,7 +18,7 @@ Do not put credentials, license data, or customer data in an issue.
 You need Helm 3, kubeconform, and pre-commit.
 Run all commands from the repository root.
 
-1. Create a branch from `main`.
+1. Create a branch from `development`.
 2. Make one focused change.
    Use two-space YAML indentation and kebab-case filenames.
 3. Add a comment for each public value in `wproofreader/values.yaml`.
@@ -36,91 +36,76 @@ Run all commands from the repository root.
 
 6. Test invalid combinations that the chart must reject.
    Test both the enabled and disabled forms of the feature you changed.
-7. Use a Conventional Commit subject.
+7. Open the pull request to `development`, with a Conventional Commits title.
    See [Commit messages](#commit-messages).
 
 ## Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-for every commit and for every pull request title.
-The release tooling reads the commit messages on `main` to select the next version
+for the title of every pull request.
+Pull requests into `development` are merged with **Squash and merge**:
+the title becomes the commit subject, and the description becomes the commit body.
+The release workflow reads these commits to select the next version
 and to write the changelog.
 
-Pull requests are merged with a merge commit, so every commit of your branch goes to `main`.
-Each `feat` and `fix` commit becomes one line in the changelog.
-Before you ask for a review, clean the branch:
-
-- Squash fixups and work-in-progress commits with `git rebase -i origin/main`.
-- Give each remaining commit a Conventional Commits subject.
-- Update the branch with `git rebase origin/main`, not with a merge from `main`.
-
-The `commit-messages` check rejects a pull request with a commit that does not follow the format.
-Run the same check before you push:
-
-```bash
-./scripts/check-commit-messages.sh origin/main HEAD
-```
+The `pull-request` check rejects a title that does not follow the format.
 
 | Type | Use it for | Version change |
 | --- | --- | --- |
-| `feat` | A new option or behavior, or a new `appVersion` | Minor, for example 1.0.0 to 1.1.0 |
+| `feat` | A new option or behavior | Minor, for example 1.0.0 to 1.1.0 |
 | `fix` | A bug fix | Patch, for example 1.0.0 to 1.0.1 |
 | `perf`, `refactor`, `revert` | A change that users can see in the changelog | Patch |
 | `docs`, `chore`, `ci`, `test`, `build`, `style` | A change that does not affect the packaged chart | None |
 
 For a breaking change, add `!` after the type,
 for example `feat!: remove the legacy routing values`,
-and add a `BREAKING CHANGE:` footer that tells operators what they must change.
+and end the description with a `BREAKING CHANGE:` line that tells operators what they must change.
 A breaking change selects the next major version.
 
-Do not change the chart `version` in `wproofreader/Chart.yaml` or `wproofreader/CHANGELOG.md`
-in your pull request.
-The release pull request changes them.
-To deploy a new WProofreader Server image, change `appVersion` in a `feat:` pull request.
+To deploy a new WProofreader Server image, change `appVersion`.
+The type follows the part of the WProofreader Server version A.B.C.D that changes:
+A gives `feat!`, B gives `feat`, and C or D gives `fix`.
 A `webspellchecker/db-manager` image with the same tag must exist,
 because the provisioning Job uses it.
 
+Do not change the chart `version` in `wproofreader/Chart.yaml` or `wproofreader/CHANGELOG.md`
+in your pull request: the check rejects it.
+The release pull request changes them.
+
 ## Release a new chart version
 
-Releases use a release pull request.
-No workflow pushes commits to `main`, so every change to `main` has an approved pull request.
+`main` holds only released versions.
+The release is the pull request from `development` to `main`.
 The release workflow uses [git-cliff](https://git-cliff.org/) with `cliff.toml`.
 It reads the commits that change `wproofreader/` since the last `v<version>` tag.
-It skips merge commits, so each commit of a branch is counted one time.
 
-1. Merge your pull requests into `main` as usual.
-2. The release workflow opens or updates one pull request with the title
-   `chore(release): <version>`, from the `release/next` branch.
-   It changes the chart `version` in `wproofreader/Chart.yaml` and adds the release notes
-   to `wproofreader/CHANGELOG.md`.
-   Changes of the types `docs`, `chore`, `ci`, `test`, `build`, and `style` do not open a release
-   pull request.
-3. Review the release pull request.
+1. Merge the pull requests of the release into `development`.
+2. Open a pull request from `development` to `main`.
+   The release workflow commits `chore(release): <version>` to `development`.
+   This commit sets the chart version in `wproofreader/Chart.yaml`
+   and adds the release notes to `wproofreader/CHANGELOG.md`.
+   The workflow changes the title and the description of the pull request,
+   and sets the `release-ready` status.
+   When only changes of the types `docs`, `chore`, `ci`, `test`, `build`, and `style` are waiting,
+   the merge publishes no release.
+3. Review the pull request.
    Make sure that the version and the release notes are correct.
-   Do not edit the release pull request: the workflow writes it again after each merge to `main`.
-   To change the notes, change the commits in a new pull request.
-4. Approve and merge the release pull request when you want to publish the release.
+   To change the notes or to add a fix, merge a pull request into `development`:
+   the workflow prepares the release again.
+   Do not merge other pull requests into `development` until the release is published.
+4. Merge the pull request with **Create a merge commit**.
 5. The release workflow then does these steps:
    - It runs `make check`.
    - It creates the `v<version>` tag and the GitHub Release.
      The release notes are the section of the version in `wproofreader/CHANGELOG.md`.
    - It packages the chart and attaches `wproofreader-<version>.tgz` to the release.
-   - It adds the package to `index.yaml` on the `gh-pages` branch.
+   - It adds the package to `index.yaml` on the `gh-pages` branch
+     and checks that `helm search repo` finds the version.
+   - It brings `development` up to `main`.
 6. Make sure that the workflow run is successful,
    and that the GitHub Release has the `.tgz` file.
    If a step fails, fix the cause and select **Re-run failed jobs** on the run.
    The publish steps skip work that is already done.
-
-To release several changes together, wait with step 4.
-The release pull request collects all changes until you merge it.
-
-To select the version yourself, for example 1.2.3 instead of 1.1.0,
-run the **Release chart** workflow manually from the **Actions** tab
-with the version in the **version** field.
-The version must be higher than the last release.
-The workflow sets this version in the release pull request.
-The next merge to `main` selects the version from the commits again,
-so run the workflow again if necessary.
 
 Do not move or delete a published release tag.
 To correct a release, publish a new version.
