@@ -82,6 +82,21 @@ scripts/stack-test.sh teardown      # always
 
 Run `scripts/stack-test.sh --help` for all options and stages.
 
+### Promote a WProofreader Server version
+
+`scripts/update-app-version.sh VERSION` changes `appVersion` in `wproofreader/Chart.yaml`,
+the image tag in `examples/values-dev.yaml`, and the version in the example `manifests/`.
+Without `--open-pr`, it shows the change and the commit message and changes nothing.
+With `--open-pr`, it commits on the branch `update/wproofreader-VERSION`, pushes it,
+and opens a pull request to `main`.
+It needs `GITHUB_TOKEN` with write access to the repository contents and pull requests.
+The commit type follows the changed version part:
+`feat!` for the first number, `feat` for the second, and `fix` for the third or fourth.
+
+CI runs the stack test with `--wproofreader-version VERSION` first
+and opens the pull request only when all checks pass.
+The pull request needs an approval like any other change.
+
 ## Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
