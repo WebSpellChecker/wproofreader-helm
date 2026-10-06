@@ -3,8 +3,9 @@
 # change wproofreader/ since the last v<version> tag:
 #   git-cliff --include-path 'wproofreader/**' --bumped-version          # next version
 #   git-cliff --include-path 'wproofreader/**' --unreleased --tag vX.Y.Z  # release notes
-# Pull requests are merged with a merge commit. Merge commits are skipped, so each commit
-# of a branch counts one time.
+# Pull requests into development are merged with "Squash and merge", so each pull request is
+# one commit. Merge commits (the release merge and the sync of development) and
+# chore(release) commits are skipped.
 
 [changelog]
 header = """
