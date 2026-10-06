@@ -3,21 +3,92 @@ name: Chart validation
 on:
   workflow_dispatch:
   pull_request:
+    # "edited": a new title can change the next version, so the title is checked again.
+    types: [opened, reopened, synchronize, edited]
   push:
-    branches: [main]
+    branches: [main, development]
 
 permissions:
   contents: read
 
 concurrency:
-  group: chart-validation-${{ github.ref }}
+  # A title edit must not cancel the validation of the code.
+  group: chart-validation-${{ github.ref }}-${{ github.event.action == 'edited' && 'title' || 'code' }}
   cancel-in-progress: true
 
 jobs:
-  commit-messages:
-    # Every commit of the branch reaches main with the merge commit, and the release
-    # workflow reads each subject. Merge commits are skipped.
+  pull-request:
+    # Pull requests go to development; only the release pull request goes from development to main.
     if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the target branch
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          if [ "${BASE_REF}" = main ] && { [ "${HEAD_REF}" != development ] || [ "${HEAD_REPO}" != "${GITHUB_REPOSITORY}" ]; }; then
+            echo "error: open the pull request to development. Only the release pull request goes from development to main." >&2
+            exit 1
+          fi
+          echo "Target branch ${BASE_REF}: allowed."
+
+      - name: Check the title
+        # "Squash and merge" makes the title the commit subject and the description the commit body.
+        if: github.event.pull_request.base.ref == 'development'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          types='feat|fix|perf|refactor|revert|docs|style|test|build|ci|chore'
+          pattern="^(${types})(\([A-Za-z0-9._/-]+\))?(!)?: [^ .](.*[^.])?$"
+          if [[ ! "${TITLE}" =~ ${pattern} ]]; then
+            echo "error: the title does not follow Conventional Commits: ${TITLE}" >&2
+            echo "Use \"<type>[(scope)][!]: <description>\", for example \"fix(gateway): keep the TLS hostname\"." >&2
+            echo "See \"Commit messages\" in CONTRIBUTING.md." >&2
+            exit 1
+          fi
+          if [ -n "${BASH_REMATCH[3]}" ] && ! printf '%s\n' "${BODY}" | grep -q '^BREAKING CHANGE: '; then
+            echo "error: the title marks a breaking change. Add a line \"BREAKING CHANGE: <what operators must do>\"" >&2
+            echo "at the end of the description." >&2
+            exit 1
+          fi
+          echo "The title follows Conventional Commits."
+
+      - uses: actions/checkout@v7
+        if: github.event.pull_request.base.ref == 'development' && github.event.action != 'edited'
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check that the chart version and the changelog do not change
+        # The release pull request writes them.
+        if: github.event.pull_request.base.ref == 'development' && github.event.action != 'edited'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          failed=0
+          if ! git diff --quiet "${BASE_SHA}...${HEAD_SHA}" -- wproofreader/CHANGELOG.md; then
+            echo "error: the pull request changes wproofreader/CHANGELOG.md" >&2
+            failed=1
+          fi
+          if git diff "${BASE_SHA}...${HEAD_SHA}" -- wproofreader/Chart.yaml | grep -q -E '^[-+]version:'; then
+            echo "error: the pull request changes the chart version in wproofreader/Chart.yaml" >&2
+            failed=1
+          fi
+          if [ "${failed}" -ne 0 ]; then
+            echo "The release pull request (development to main) sets the chart version and writes the changelog." >&2
+            exit 1
+          fi
+          echo "The pull request does not change the chart version or the changelog."
+
+  commit-messages:
+    # The release pull request: each commit that development adds to main.
+    # The release workflow reads these subjects. Merge commits are skipped.
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -33,6 +104,7 @@ jobs:
         run: ./scripts/check-commit-messages.sh "$BASE_SHA" "$HEAD_SHA"
 
   validate:
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
