@@ -12,3 +12,6 @@ wproofreader/ci/
 
 *.swp
 *.bak
+.tools/
+.stack-test/
+diag/

@@ -1,0 +1,10 @@
+# Stack test values for the wproofreader-app release (scripts/stack-test.sh).
+# The script sets database.host for the test namespace and, when a version is given,
+# image.tag and databaseProvisioning.image.tag.
+licenseExistingSecret: wproofreader-license   # key: license
+database:
+  enabled: true
+  existingSecret: wproofreader-db   # keys: root-password, appserver-password, admin-panel-password
+databaseProvisioning:
+  enabled: true
+  rootUser: root

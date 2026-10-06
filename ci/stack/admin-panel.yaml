@@ -1,0 +1,19 @@
+# Stack test values for the admin-panel release (scripts/stack-test.sh).
+# No Gateway or Ingress. The script sets the in-cluster host names for the test namespace.
+config:
+  db:
+    port: 3306
+    database: admin_panel_db
+    username: admin_panel
+  serviceDb:
+    port: 3306
+    database: cloud_service
+    username: app_service
+  mail:
+    mailer: log
+secrets:
+  existingSecret: admin-panel-secrets   # keys: APP_KEY, DB_PASSWORD, SERVICE_DB_PASSWORD
+gateway:
+  enabled: false
+ingress:
+  enabled: false

@@ -39,6 +39,49 @@ Run all commands from the repository root.
 7. Use a Conventional Commit subject.
    See [Commit messages](#commit-messages).
 
+## Stack test
+
+`scripts/stack-test.sh` installs the chart on a temporary k3d cluster with MySQL and checks it.
+It installs MySQL (mysql-server-helm) and then WProofreader Server with the db-manager provisioning Job.
+It checks the db-manager Job, the `cmd=ver`, `cmd=status`, and `cmd=license_status` answers, and the database users.
+It then upgrades each release with the same values.
+The release names, Secret names, and keys are the same as in the Kubernetes installation guide.
+CI runs the same test before a new WProofreader Server version goes into the chart.
+
+You need Docker and a valid license ticket: WProofreader Server does not get ready without a license.
+While mysql-server-helm is private, set `GITHUB_TOKEN` to a token that can read it,
+or give a local copy of the chart with `--mysql path:<dir>`.
+
+```bash
+export STACK_TOOLS_DIR="$PWD/.tools/bin"
+scripts/ci/install-tools.sh   # k3d, kubectl, helm, and crane with checksum checks
+export WPR_LICENSE_TICKET_ID='<license_ticket_id>'
+scripts/stack-test.sh --wproofreader-version 6.18.1.0
+```
+
+`--wproofreader-version` sets the WProofreader Server and db-manager image tag.
+Without it, the test uses the chart `appVersion`.
+On a slow connection, add `--preload-images`: the local Docker pulls the images once and keeps them.
+The script deletes the cluster at the end, also when a check fails.
+When a check fails, the script writes the Pod logs, events, and release status to the `diag` directory.
+
+To show each stage as a separate CI step, give the stage names.
+The stages share their state through a private file in `STACK_STATE_DIR`.
+Run `preflight` first, `diagnostics` after a failed step, and `teardown` always:
+
+```bash
+scripts/stack-test.sh --wproofreader-version 6.18.1.0 preflight
+scripts/stack-test.sh cluster
+scripts/stack-test.sh secrets
+scripts/stack-test.sh mysql
+scripts/stack-test.sh wproofreader
+scripts/stack-test.sh upgrade
+scripts/stack-test.sh diagnostics   # after a failed step
+scripts/stack-test.sh teardown      # always
+```
+
+Run `scripts/stack-test.sh --help` for all options and stages.
+
 ## Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)

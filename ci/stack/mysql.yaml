@@ -1,0 +1,11 @@
+# Stack test values for the mysql release (scripts/stack-test.sh).
+# Same settings as the Kubernetes installation guide (MySQL 8.4), with a small volume.
+image:
+  tag: "8.4"
+auth:
+  existingSecret: mysql-credentials   # keys: mysql-root-password, mysql-password
+  database: admin_panel_db
+  username: admin_panel
+primary:
+  persistence:
+    size: 1Gi
