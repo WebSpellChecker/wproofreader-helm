@@ -215,7 +215,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write  # the tag, the release, gh-pages, and development
+      contents: write       # the tag, the release, gh-pages, and development
+      pull-requests: read   # find the pull request of the merge commit
     concurrency:
       group: chart-publish
       cancel-in-progress: false
@@ -229,10 +230,18 @@ jobs:
       - name: Find the release pull request of this commit
         id: release
         run: |
-          pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq \
+          # An API error must stop the job: its output is not a pull request number.
+          if ! prs=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq \
             ".[] | select(.merged_at != null and .base.ref == \"main\" and .head.ref == \"development\"
-              and .head.repo.full_name == \"${GITHUB_REPOSITORY}\" and .merge_commit_sha == \"${GITHUB_SHA}\") | .number" \
-            | head -n 1)
+              and .head.repo.full_name == \"${GITHUB_REPOSITORY}\" and .merge_commit_sha == \"${GITHUB_SHA}\") | .number"); then
+            echo "error: cannot list the pull requests of ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+          pr=$(printf '%s\n' "${prs}" | head -n 1)
+          if [ -n "${pr}" ] && ! [[ "${pr}" =~ ^[0-9]+$ ]]; then
+            echo "error: unexpected answer of the pull request lookup" >&2
+            exit 1
+          fi
           if [ -z "${pr}" ]; then
             echo "This push is not the merge of a pull request from development: nothing to publish."
             echo "merged=false" >> "$GITHUB_OUTPUT"
