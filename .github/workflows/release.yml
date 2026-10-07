@@ -333,40 +333,19 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin gh-pages
           git worktree add ../gh-pages origin/gh-pages
-          helm repo index dist \
-            --url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}" \
-            --merge ../gh-pages/index.yaml
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
+          # helm repo index writes new "created" and "generated" times on each run, so a re-run
+          # looks for the package URL instead of comparing the files.
+          if grep -qF -e "- ${url}/${CHART}-${VERSION}.tgz" ../gh-pages/index.yaml; then
+            echo "index.yaml already has v${VERSION}."
+            exit 0
+          fi
+          helm repo index dist --url "${url}" --merge ../gh-pages/index.yaml
           cp dist/index.yaml ../gh-pages/index.yaml
           cd ../gh-pages
           git add index.yaml
-          if git diff --cached --quiet; then
-            echo "index.yaml already has v${VERSION}."
-          else
-            git commit -m "chore: add v${VERSION} to the Helm repository index"
-            git push origin HEAD:gh-pages
-          fi
-
-      - name: Check that users can install the release
-        if: steps.release.outputs.publish == 'true'
-        env:
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          curl -fsSL -o /dev/null \
-            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${CHART}-${VERSION}.tgz"
-          owner=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
-          url="https://${owner}.github.io/${GITHUB_REPOSITORY#*/}/"
-          # GitHub Pages serves the new index.yaml some time after the push.
-          for attempt in $(seq 1 20); do
-            if helm repo add release-check "${url}" --force-update >/dev/null 2>&1 \
-              && helm search repo "release-check/${CHART}" --version "${VERSION}" | grep -q "${VERSION}"; then
-              echo "helm search finds ${CHART} ${VERSION} in ${url}"
-              exit 0
-            fi
-            echo "attempt ${attempt}: ${VERSION} is not in ${url}index.yaml yet"
-            sleep 30
-          done
-          echo "error: ${url}index.yaml does not list ${VERSION}" >&2
-          exit 1
+          git commit -m "chore: add v${VERSION} to the Helm repository index"
+          git push origin HEAD:gh-pages
 
       - name: Bring development up to main
         if: steps.release.outputs.merged == 'true'
@@ -392,3 +371,25 @@ jobs:
             git push --quiet origin HEAD:refs/heads/development
             echo "Merged main into development: $(git rev-parse --short HEAD)."
           fi
+
+      - name: Check that users can install the release
+        if: steps.release.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          curl -fsSL -o /dev/null \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${CHART}-${VERSION}.tgz"
+          owner=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          url="https://${owner}.github.io/${GITHUB_REPOSITORY#*/}/"
+          # GitHub Pages serves the new index.yaml some time after the push.
+          for attempt in $(seq 1 20); do
+            if helm repo add release-check "${url}" --force-update >/dev/null 2>&1 \
+              && helm search repo "release-check/${CHART}" --version "${VERSION}" | grep -q "${VERSION}"; then
+              echo "helm search finds ${CHART} ${VERSION} in ${url}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${VERSION} is not in ${url}index.yaml yet"
+            sleep 30
+          done
+          echo "error: ${url}index.yaml does not list ${VERSION}" >&2
+          exit 1
