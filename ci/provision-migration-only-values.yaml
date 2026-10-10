@@ -1,0 +1,7 @@
+# Provision migrations without creating predefined users or requiring their passwords.
+database:
+  host: mysql
+databaseProvisioning:
+  enabled: true
+  rootPassword: ci-root-password
+  provisionPredefinedUsers: false
