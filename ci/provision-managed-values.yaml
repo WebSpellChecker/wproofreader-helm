@@ -1,0 +1,10 @@
+# Chart-managed credentials for db-manager provisioning.
+database:
+  enabled: true
+  host: mysql
+  appServerPassword: ci-appserver-password
+databaseProvisioning:
+  enabled: true
+  rootPassword: ci-root-password
+  adminPanelUsername: ci-admin-panel
+  adminPanelPassword: ci-admin-panel-password
