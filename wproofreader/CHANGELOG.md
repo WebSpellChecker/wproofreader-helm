@@ -5,6 +5,7 @@
 ### Bug fixes
 
 * **D0-400:** use Admin-panel provisioning credential names (#21) ([d2938d4](https://github.com/WebSpellChecker/wproofreader-helm/commit/d2938d4cca39b48fecacb20d619e55e0363afbc1))
+* **WP-7606:** enable UD separation for DB configuration (#22) ([4f088c1](https://github.com/WebSpellChecker/wproofreader-helm/commit/4f088c1de8bdb1f745e1a1bd276c693ea0dacd84))
 
 ## [1.4.0](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.3.1...v1.4.0) - 2026-09-28
 
