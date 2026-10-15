@@ -99,9 +99,9 @@ It reads the commits that change `wproofreader/` since the last `v<version>` tag
    - It creates the `v<version>` tag and the GitHub Release.
      The release notes are the section of the version in `wproofreader/CHANGELOG.md`.
    - It packages the chart and attaches `wproofreader-<version>.tgz` to the release.
-   - It adds the package to `index.yaml` on the `gh-pages` branch
-     and checks that `helm search repo` finds the version.
+   - It adds the package to `index.yaml` on the `gh-pages` branch.
    - It brings `development` up to `main`.
+   - It checks that users can download the package and that `helm search repo` finds the version.
 6. Make sure that the workflow run is successful,
    and that the GitHub Release has the `.tgz` file.
    If a step fails, fix the cause and select **Re-run failed jobs** on the run.

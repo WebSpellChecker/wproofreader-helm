@@ -91,10 +91,10 @@ spec:
                   name: {{ include "wproofreader.dbSecretName" . | quote }}
                   key: appserver-password
                   optional: {{ not .Values.databaseProvisioning.provisionPredefinedUsers }}
-            # --- Admin-panel user (db-manager APP_MANAGER_* variables) ---
-            - name: APP_MANAGER_USERNAME
+            # --- Admin-panel user ---
+            - name: ADMIN_PANEL_USERNAME
               value: {{ .Values.databaseProvisioning.adminPanelUsername | quote }}
-            - name: APP_MANAGER_PASSWORD
+            - name: ADMIN_PANEL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "wproofreader.dbSecretName" . | quote }}
