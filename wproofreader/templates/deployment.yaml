@@ -108,6 +108,10 @@ spec:
             - name: WPR_ENABLE_REQUEST_VALIDATION
               value: "true"
             {{- end }}
+            {{- if .Values.database.enableUdSeparationByCid }}
+            - name: WPR_UD_SEPARATION_BY_CID_ENABLED
+              value: "true"
+            {{- end }}
             {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
