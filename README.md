@@ -6,6 +6,9 @@ By default, the image is pulled from [WebSpellChecker Docker Hub](https://hub.do
 however, many users would require building their own local images with custom configuration.
 Please refer to [our other repository](https://github.com/WebSpellChecker/wproofreader-docker/) to get started with building your own docker image.
 
+To install the full stack (MySQL, WProofreader Server, and Admin-panel) with Argo CD or Flux,
+use the [WProofreader GitOps examples](https://github.com/WebSpellChecker/wproofreader-gitops).
+
 ## Prerequisites
 
 Before you begin, make sure you have the required environment:
