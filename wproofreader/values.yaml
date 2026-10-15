@@ -232,6 +232,8 @@ database:
   enableRequestStatistic: true
   enableUserActionStatistic: true
   enableRequestValidation: true
+  # keep user dictionaries separate for each customer ID (WPR_UD_SEPARATION_BY_CID_ENABLED)
+  enableUdSeparationByCid: true
 
 #### Database provisioning (optional)
 # Provision the database above with db-manager (schema, migrations, users) via a

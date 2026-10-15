@@ -373,6 +373,10 @@ connection is configured through its `WPR_DATABASE_*` variables.
 | `database.user` | `appserver` | MySQL user for WProofreader Server |
 | `database.appServerPassword` | `""` | Password for `database.user`; ignored when `database.existingSecret` is set |
 | `database.existingSecret` | `""` | Existing Secret that contains the database passwords |
+| `database.enableRequestStatistic` | `true` | Set `WPR_ENABLE_REQUEST_STATISTIC` when `database.enabled` is `true` |
+| `database.enableUserActionStatistic` | `true` | Set `WPR_ENABLE_USER_ACTION_STATISTIC` when `database.enabled` is `true` |
+| `database.enableRequestValidation` | `true` | Set `WPR_ENABLE_REQUEST_VALIDATION` when `database.enabled` is `true` |
+| `database.enableUdSeparationByCid` | `true` | Set `WPR_UD_SEPARATION_BY_CID_ENABLED` when `database.enabled` is `true` |
 | `databaseProvisioning.enabled` | `false` | Prepare the database with db-manager |
 | `databaseProvisioning.rootUser` | `root` | Administrative MySQL user for provisioning |
 | `databaseProvisioning.rootPassword` | `""` | Password for the administrative MySQL user; ignored when `database.existingSecret` is set |
