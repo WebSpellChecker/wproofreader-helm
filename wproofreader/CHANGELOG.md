@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.4.0...v1.4.1) - 2026-10-15
+
+### Bug fixes
+
+* **D0-400:** use Admin-panel provisioning credential names (#21) ([d2938d4](https://github.com/WebSpellChecker/wproofreader-helm/commit/d2938d4cca39b48fecacb20d619e55e0363afbc1))
+
 ## [1.4.0](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.3.1...v1.4.0) - 2026-09-28
 
 ### Features

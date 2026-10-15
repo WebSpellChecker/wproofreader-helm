@@ -4,6 +4,6 @@ description: A Helm chart for deploying webspellchecker/wproofreader in Kubernet
 
 type: application
 
-version: 1.4.0
+version: 1.4.1
 
 appVersion: "6.18.1.0"
