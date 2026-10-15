@@ -153,7 +153,7 @@ jobs:
           fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - uses: azure/setup-helm@v5
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310  # v5.0.1
         if: steps.state.outputs.current == 'true'
 
       - uses: actions/setup-go@v7
@@ -215,7 +215,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write  # the tag, the release, gh-pages, and development
+      contents: write       # the tag, the release, gh-pages, and development
+      pull-requests: read   # find the pull request of the merge commit
     concurrency:
       group: chart-publish
       cancel-in-progress: false
@@ -229,10 +230,18 @@ jobs:
       - name: Find the release pull request of this commit
         id: release
         run: |
-          pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq \
+          # An API error must stop the job: its output is not a pull request number.
+          if ! prs=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq \
             ".[] | select(.merged_at != null and .base.ref == \"main\" and .head.ref == \"development\"
-              and .head.repo.full_name == \"${GITHUB_REPOSITORY}\" and .merge_commit_sha == \"${GITHUB_SHA}\") | .number" \
-            | head -n 1)
+              and .head.repo.full_name == \"${GITHUB_REPOSITORY}\" and .merge_commit_sha == \"${GITHUB_SHA}\") | .number"); then
+            echo "error: cannot list the pull requests of ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+          pr=$(printf '%s\n' "${prs}" | head -n 1)
+          if [ -n "${pr}" ] && ! [[ "${pr}" =~ ^[0-9]+$ ]]; then
+            echo "error: unexpected answer of the pull request lookup" >&2
+            exit 1
+          fi
           if [ -z "${pr}" ]; then
             echo "This push is not the merge of a pull request from development: nothing to publish."
             echo "merged=false" >> "$GITHUB_OUTPUT"
@@ -258,7 +267,7 @@ jobs:
             echo "version=${version}"
           } >> "$GITHUB_OUTPUT"
 
-      - uses: azure/setup-helm@v5
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310  # v5.0.1
         if: steps.release.outputs.publish == 'true'
 
       - uses: actions/setup-go@v7
@@ -324,40 +333,19 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin gh-pages
           git worktree add ../gh-pages origin/gh-pages
-          helm repo index dist \
-            --url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}" \
-            --merge ../gh-pages/index.yaml
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
+          # helm repo index writes new "created" and "generated" times on each run, so a re-run
+          # looks for the package URL instead of comparing the files.
+          if grep -qF -e "- ${url}/${CHART}-${VERSION}.tgz" ../gh-pages/index.yaml; then
+            echo "index.yaml already has v${VERSION}."
+            exit 0
+          fi
+          helm repo index dist --url "${url}" --merge ../gh-pages/index.yaml
           cp dist/index.yaml ../gh-pages/index.yaml
           cd ../gh-pages
           git add index.yaml
-          if git diff --cached --quiet; then
-            echo "index.yaml already has v${VERSION}."
-          else
-            git commit -m "chore: add v${VERSION} to the Helm repository index"
-            git push origin HEAD:gh-pages
-          fi
-
-      - name: Check that users can install the release
-        if: steps.release.outputs.publish == 'true'
-        env:
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          curl -fsSL -o /dev/null \
-            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${CHART}-${VERSION}.tgz"
-          owner=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
-          url="https://${owner}.github.io/${GITHUB_REPOSITORY#*/}/"
-          # GitHub Pages serves the new index.yaml some time after the push.
-          for attempt in $(seq 1 20); do
-            if helm repo add release-check "${url}" --force-update >/dev/null 2>&1 \
-              && helm search repo "release-check/${CHART}" --version "${VERSION}" | grep -q "${VERSION}"; then
-              echo "helm search finds ${CHART} ${VERSION} in ${url}"
-              exit 0
-            fi
-            echo "attempt ${attempt}: ${VERSION} is not in ${url}index.yaml yet"
-            sleep 30
-          done
-          echo "error: ${url}index.yaml does not list ${VERSION}" >&2
-          exit 1
+          git commit -m "chore: add v${VERSION} to the Helm repository index"
+          git push origin HEAD:gh-pages
 
       - name: Bring development up to main
         if: steps.release.outputs.merged == 'true'
@@ -383,3 +371,25 @@ jobs:
             git push --quiet origin HEAD:refs/heads/development
             echo "Merged main into development: $(git rev-parse --short HEAD)."
           fi
+
+      - name: Check that users can install the release
+        if: steps.release.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          curl -fsSL -o /dev/null \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${CHART}-${VERSION}.tgz"
+          owner=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          url="https://${owner}.github.io/${GITHUB_REPOSITORY#*/}/"
+          # GitHub Pages serves the new index.yaml some time after the push.
+          for attempt in $(seq 1 20); do
+            if helm repo add release-check "${url}" --force-update >/dev/null 2>&1 \
+              && helm search repo "release-check/${CHART}" --version "${VERSION}" | grep -q "${VERSION}"; then
+              echo "helm search finds ${CHART} ${VERSION} in ${url}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${VERSION} is not in ${url}index.yaml yet"
+            sleep 30
+          done
+          echo "error: ${url}index.yaml does not list ${VERSION}" >&2
+          exit 1
