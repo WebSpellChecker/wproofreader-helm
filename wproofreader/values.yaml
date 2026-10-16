@@ -21,7 +21,7 @@ licenseExistingSecret: ""
 extraEnv: []
 # extraEnv:
 #   - name: WPR_JVM_MAX_MEMORY_SIZE_MB
-#     value: "2048"
+#     value: "4096"
 
 # extra volumes / mounts for the AppServer pod, e.g. a Secrets Store CSI volume that also
 # syncs the license into the Secret named by licenseExistingSecret
@@ -116,7 +116,7 @@ autoscaling: {}
 # Ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 resources: {}
 #  requests:
-#    memory: "4Gi"
+#    memory: "5Gi"
 #    cpu: "1"
 #  limits:
 #    memory: "8Gi"
