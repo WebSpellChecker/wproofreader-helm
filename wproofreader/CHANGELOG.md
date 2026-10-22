@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.0](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.4.1...v1.5.0) - 2026-10-22
+
+### Features
+
+* update WProofreader Server to 6.19.0.0 (#25) ([9501b5f](https://github.com/WebSpellChecker/wproofreader-helm/commit/9501b5fbae8db9b8788191ad7266de115879670e))
+
 ## [1.4.1](https://github.com/WebSpellChecker/wproofreader-helm/compare/v1.4.0...v1.4.1) - 2026-10-15
 
 ### Bug fixes
