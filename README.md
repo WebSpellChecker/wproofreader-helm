@@ -417,12 +417,12 @@ This can be configured in the `values.yaml` file under the `resources` section.
 
 ### Recommended resource requests and limits
 
-Below are the recommended resource requests and limits for deploying WProofreader Server v5.34.x with enabled English dialects (en_US, en_GB, en_CA, and en_AU) for spelling & grammar check using the English AI language model for enhanced and more accurate proofreading. It also includes such features as a style guide, spelling autocorrect, named-entity recognition (NER), and text autocomplete suggestions (text prediction). These values represent the minimum requirements for running WProofreader Server in a production environment.
+Below are the recommended resource requests and limits for deploying WProofreader Server v6.18.x with enabled English dialects (en_US, en_GB, en_CA, and en_AU) for spelling & grammar check using the English AI language model for enhanced and more accurate proofreading. It also includes such features as a style guide, spelling autocorrect, named-entity recognition (NER), and text autocomplete suggestions (text prediction). These values represent the minimum requirements for running WProofreader Server in a production environment.
 
 ```yaml
 resources:
   requests:
-    memory: "4Gi"
+    memory: "5Gi"
     cpu: "1"
   limits:
     memory: "8Gi"
