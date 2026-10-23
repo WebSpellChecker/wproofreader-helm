@@ -393,3 +393,31 @@ jobs:
           done
           echo "error: ${url}index.yaml does not list ${VERSION}" >&2
           exit 1
+
+      - name: Announce the release in the releases chat
+        # Last step: only a published and installable version is announced. A chat outage is a warning,
+        # not a failed release.
+        if: steps.release.outputs.publish == 'true'
+        env:
+          WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_RELEASES_WEBHOOK_URL }}
+          VERSION: ${{ steps.release.outputs.version }}
+          APP_LABEL: WProofreader Server
+        run: |
+          if [ -z "${WEBHOOK_URL}" ]; then
+            echo "::warning::GOOGLE_CHAT_RELEASES_WEBHOOK_URL is not set; no release announcement"
+            exit 0
+          fi
+          app_version=$(awk '/^appVersion:/ {gsub(/"/, "", $2); print $2; exit}' "${CHART}/Chart.yaml")
+          owner=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          # Google Chat text: *bold*; URLs become links.
+          text=$(printf '*%s %s* released\n%s %s\nRelease: %s\nHelm repository: %s' \
+            "${GITHUB_REPOSITORY#*/}" "${VERSION}" "${APP_LABEL}" "${app_version}" \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/v${VERSION}" \
+            "https://${owner}.github.io/${GITHUB_REPOSITORY#*/}")
+          if ! response=$(jq -n --arg text "${text}" '{text: $text}' \
+            | curl --fail-with-body -sS --max-time 15 -X POST -H 'Content-Type: application/json; charset=UTF-8' \
+              --data @- "${WEBHOOK_URL}"); then
+            echo "::warning::Google Chat rejected the release message: ${response}"
+            exit 0
+          fi
+          echo "Google Chat accepted the release message"
